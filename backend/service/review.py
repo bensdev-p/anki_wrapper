@@ -92,6 +92,9 @@ def _undoable_steps(col: Collection) -> set[str]:
         tr.studying_suspend(),
         tr.studying_bury(),
         tr.actions_update_note(),
+        # browser bulk actions
+        tr.actions_unbury_unsuspend(),
+        tr.actions_set_due_date(),
     }
 
 

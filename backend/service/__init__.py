@@ -25,7 +25,7 @@ from .review import (
 )
 from .search import search_cards
 from .stats import stats
-from . import sync
+from . import browser, sync
 
 __all__ = [
     "NotFound",
@@ -49,6 +49,7 @@ __all__ = [
     "select_deck",
     "stats",
     "sync",
+    "browser",
     "study_state",
     "undo",
 ]

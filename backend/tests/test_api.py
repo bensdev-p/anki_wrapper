@@ -116,3 +116,21 @@ def test_card_actions_and_note_edit(client: TestClient) -> None:
     undone = client.post("/api/study/undo").json()
     assert undone["result"]["was_answer"] is False
     assert undone["state"]["card"]["card_id"] == cid
+
+
+def test_browse_paging_and_select_all_action(client: TestClient) -> None:
+    first = client.get("/api/browse", params={"q": "deck:*", "sort": "cardDue", "limit": 20}).json()
+    total = first["total"]
+    assert total > 40 and len(first["rows"]) == 20
+    second = client.get("/api/browse", params={"q": "deck:*", "sort": "cardDue", "offset": 20, "limit": 20}).json()
+    assert {r["card_id"] for r in first["rows"]}.isdisjoint(r["card_id"] for r in second["rows"])
+    assert client.get("/api/browse", params={"q": "deck:("}).status_code == 422
+
+    r = client.post("/api/browse/action", json={
+        "selection": {"query": '"deck:Step 2 CK"'}, "action": "suspend"})
+    n = r.json()["count"]
+    assert n > 0
+    assert client.get("/api/browse", params={"q": "is:suspended"}).json()["total"] == n
+    assert client.post("/api/study/undo").json()["result"]["undone"] == "Suspend"
+    assert client.post("/api/browse/action", json={"selection": {}, "action": "suspend"}).status_code == 422
+    assert client.post("/api/browse/action", json={"selection": {"card_ids": [1]}, "action": "delete"}).status_code == 422

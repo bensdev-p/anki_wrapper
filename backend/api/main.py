@@ -22,6 +22,7 @@ from service.stats import MAX_DAYS as STATS_MAX_DAYS
 from safety import DEV_COLLECTION, REPO_ROOT, resolve_collection_path
 from service.types import (
     AnswerResult,
+    BrowsePage,
     CardInfo,
     NoteForEdit,
     RenderedCard,
@@ -65,7 +66,7 @@ def _host(request: Request) -> CollectionHost:
 
 @app.exception_handler(service.ServiceError)
 async def _service_error(_: Request, exc: service.ServiceError) -> JSONResponse:
-    status = 404 if isinstance(exc, service.NotFound) else 409
+    status = 404 if isinstance(exc, service.NotFound) else 422 if isinstance(exc, service.browser.InvalidSearch) else 409
     return JSONResponse({"error": type(exc).__name__, "detail": str(exc)}, status_code=status)
 
 
@@ -233,6 +234,96 @@ class NoteUpdate(BaseModel):
 @app.put("/api/notes/{note_id}")
 async def put_note(request: Request, note_id: int, body: NoteUpdate) -> NoteForEdit:
     return await _host(request).run(lambda col: service.update_note(col, note_id, body.fields, body.tags))
+
+
+# Browser
+##########################################################################
+
+# Matching ids for the last search, so scrolling through 100k results only
+# fetches rows. Keyed on col.mod: any change to the collection invalidates it.
+_browse_cache: dict[tuple, list[int]] = {}
+
+
+def _browse_ids(col, query: str, sort: str, reverse: bool) -> list[int]:  # type: ignore[no-untyped-def]
+    key = (query, sort, reverse, col.mod)
+    if (hit := _browse_cache.get(key)) is None:
+        hit = service.browser.search_ids(col, query, sort, reverse)
+        _browse_cache.clear()
+        _browse_cache[key] = hit
+    return hit
+
+
+@app.get("/api/browse")
+async def browse(
+    request: Request,
+    q: str = Query("", max_length=2000),
+    sort: str = Query("noteFld"),
+    reverse: bool = Query(False),
+    offset: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=service.browser.MAX_PAGE),
+) -> BrowsePage:
+    def op(col):  # type: ignore[no-untyped-def]
+        ids = _browse_ids(col, q, sort, reverse)
+        return BrowsePage(
+            query=q,
+            sort=sort,
+            reverse=reverse,
+            total=len(ids),
+            offset=offset,
+            rows=service.browser.rows(col, ids[offset : offset + limit]),
+            fsrs=bool(col.get_config("fsrs", False)),
+        )
+
+    return await _host(request).run(op)
+
+
+class BrowseSelection(BaseModel):
+    """Either explicit card ids, or every card matching a search ("select all")."""
+
+    card_ids: list[int] | None = None
+    query: str | None = None
+    sort: str = "noteFld"
+    reverse: bool = False
+
+
+class BrowseAction(BaseModel):
+    selection: BrowseSelection
+    action: str = Field(pattern="^(suspend|unsuspend|flag|add_tags|remove_tags|set_due)$")
+    value: str | int | None = None
+
+
+@dataclass
+class BrowseActionResult:
+    count: int
+
+
+@app.post("/api/browse/action")
+async def browse_action(request: Request, body: BrowseAction) -> BrowseActionResult:
+    def op(col):  # type: ignore[no-untyped-def]
+        sel = body.selection
+        if sel.card_ids is not None:
+            ids = sel.card_ids
+        elif sel.query is not None:
+            ids = _browse_ids(col, sel.query, sel.sort, sel.reverse)
+        else:
+            raise ValueError("nothing selected")
+        b = service.browser
+        match body.action:
+            case "suspend":
+                n = b.suspend(col, ids)
+            case "unsuspend":
+                n = b.unsuspend(col, ids)
+            case "flag":
+                n = b.set_flag(col, ids, int(body.value or 0))
+            case "add_tags":
+                n = b.add_tags(col, ids, str(body.value or ""))
+            case "remove_tags":
+                n = b.remove_tags(col, ids, str(body.value or ""))
+            case _:
+                n = b.set_due_date(col, ids, str(body.value or ""))
+        return BrowseActionResult(n)
+
+    return await _host(request).run(op)
 
 
 @app.get("/api/search")

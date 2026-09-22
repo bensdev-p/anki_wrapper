@@ -291,3 +291,40 @@ class NoteForEdit:
     tags: list[str]
     css: str
     """The note type's CSS, so the editor can show fields as they look on cards."""
+
+
+# Browser
+##########################################################################
+
+
+@dataclass
+class BrowseRow:
+    card_id: int
+    note_id: int
+    text: str
+    """Sort field as plain text (cloze markup removed)."""
+    deck: str
+    template: str
+    state: Literal["new", "learning", "review", "relearning", "suspended", "buried"]
+    due: str | None
+    interval_days: int
+    ease: int | None
+    """Ease factor in permille (SM-2 only)."""
+    difficulty: float | None
+    """FSRS difficulty as 0–1 (Anki shows it as a percentage)."""
+    reviews: int
+    lapses: int
+    flag: int
+    marked: bool
+    tags: list[str]
+
+
+@dataclass
+class BrowsePage:
+    query: str
+    sort: str
+    reverse: bool
+    total: int
+    offset: int
+    rows: list[BrowseRow]
+    fsrs: bool

@@ -334,3 +334,53 @@ def test_update_note_refuses_blanking_cards(col: Collection) -> None:
     with pytest.raises(ValueError):
         service.update_note(col, nid, {"Text": "no clozes at all"})
     assert service.note_for_edit(col, nid).fields[0].html == text  # unchanged
+
+
+# Browser
+##########################################################################
+
+
+def test_browser_search_sort_and_rows(col: Collection) -> None:
+    ids = service.browser.search_ids(col, "deck:*", "cardDue", False)
+    assert len(ids) == col.card_count()
+    rows = service.browser.rows(col, ids[:50])
+    assert [r.card_id for r in rows] == ids[:50]
+    assert all(r.text and r.deck for r in rows)
+    reverse = service.browser.search_ids(col, "deck:*", "cardDue", True)
+    assert reverse != ids
+    assert set(reverse) == set(ids)
+    assert service.browser.search_ids(col, "is:suspended", "noteFld") == []
+    with pytest.raises(service.browser.InvalidSearch):
+        service.browser.search_ids(col, "deck:(", "noteFld")
+    with pytest.raises(ValueError):
+        service.browser.search_ids(col, "", "notAColumn")
+
+
+def test_browser_rows_states(col: Collection) -> None:
+    new = service.browser.rows(col, list(col.find_cards("is:new"))[:1])[0]
+    assert new.state == "new" and new.due.startswith("New #")
+    review = service.browser.rows(col, list(col.find_cards("is:review -is:learn"))[:1])[0]
+    assert review.state == "review" and review.interval_days > 0 and review.difficulty is not None
+
+
+def test_browser_bulk_actions_and_undo(col: Collection) -> None:
+    ids = list(col.find_cards('"deck:Step 1::Renal"'))
+    assert service.browser.suspend(col, ids) == len(ids)
+    assert set(col.find_cards("is:suspended")) == set(ids)
+    service.undo(col)
+    assert not col.find_cards("is:suspended")
+
+    service.browser.add_tags(col, ids, "lecture-12 hy")
+    assert set(col.find_cards("tag:lecture-12")) == set(ids)
+    service.browser.remove_tags(col, ids, "hy")
+    assert not col.find_cards("tag:hy")
+
+    service.browser.set_flag(col, ids[:2], 3)
+    assert set(col.find_cards("flag:3")) == set(ids[:2])
+
+    service.browser.set_due_date(col, ids[:1], "0")
+    assert ids[0] in col.find_cards("prop:due=0")
+    with pytest.raises(ValueError):
+        service.browser.set_due_date(col, ids, "tomorrow")
+    with pytest.raises(ValueError):
+        service.browser.add_tags(col, ids, "   ")

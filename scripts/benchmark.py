@@ -89,6 +89,9 @@ def main() -> None:
         bench("answer + next card", answer_and_next, runs=15)
         bench("undo + card again", lambda: (service.undo(col), service.study_state(col)))
         bench("search (first 50 hits)", lambda: service.search_cards(col, "lorem"))
+        bench("browse: search + sort by due", lambda: service.browser.search_ids(col, "deck:*", "cardDue"))
+        ids = service.browser.search_ids(col, "deck:*", "cardDue")
+        bench("browse: one page of rows", lambda: service.browser.rows(col, ids[50_000:50_100]))
         bench("stats, 3 months (default)", lambda: service.stats(col, days=90))
         bench("stats, 1 year", lambda: service.stats(col, days=365))
     finally:
