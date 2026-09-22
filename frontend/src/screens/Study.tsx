@@ -1,4 +1,7 @@
 import { ArrowLeft, Check, Flag, RotateCcw, Star } from 'lucide-react'
+import { ActionsMenu, FLAG_NAMES, type CardAction } from '../components/ActionsMenu'
+import { CardInfoPanel } from '../components/CardInfoPanel'
+import { NoteEditor } from '../components/editor/NoteEditor'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BackendError } from '../backend/AnkiBackend'
 import { useBackend } from '../backend/context'
@@ -27,8 +30,6 @@ const BUTTONS: { rating: Rating; label: string; tone: string }[] = [
   { rating: 4, label: 'Easy', tone: 'easy' },
 ]
 
-// Anki's flag colors (1 red, 2 orange, 3 green, 4 blue, 5 pink, 6 turquoise, 7 purple).
-const FLAG_COLORS = ['', '#e25252', '#f0a14a', '#4caf50', '#4a90e2', '#e57bc2', '#3cc7c0', '#9b6ae0']
 
 function formatDuration(ms: number): string {
   const s = Math.round(ms / 1000)
@@ -88,6 +89,10 @@ export function Study({ deckId, paused, onOpenPalette }: Props) {
   const [now, setNow] = useState(() => Date.now())
   const busy = useRef(false)
   const shownAt = useRef(performance.now())
+  const typed = useRef('')
+  const [typeAnswerHtml, setTypeAnswerHtml] = useState<string | null>(null)
+  const [sheet, setSheet] = useState<'info' | 'edit' | null>(null)
+  const inputPaused = paused || sheet !== null
 
   const card = state?.card ?? null
   const mediaBase = useMemo(() => backend.mediaBaseUrl(), [backend])
@@ -97,6 +102,8 @@ export function Study({ deckId, paused, onOpenPalette }: Props) {
     setSide('question')
     setSeq((s) => s + 1)
     shownAt.current = performance.now()
+    typed.current = ''
+    setTypeAnswerHtml(null)
   }, [])
 
   useEffect(() => {
@@ -146,7 +153,11 @@ export function Study({ deckId, paused, onOpenPalette }: Props) {
   const flip = useCallback(() => {
     if (!card || side !== 'question') return
     setSide('answer')
-  }, [card, side])
+    if (card.rendered.type_answer) {
+      // Grade what she typed exactly as Anki does (col.compare_answer).
+      backend.compareAnswer(card.card_id, typed.current).then(setTypeAnswerHtml, () => {})
+    }
+  }, [backend, card, side])
 
   const handleError = useCallback(
     async (e: unknown) => {
@@ -184,7 +195,7 @@ export function Study({ deckId, paused, onOpenPalette }: Props) {
     busy.current = true
     try {
       const res = await backend.undo()
-      setAnswered((a) => a.slice(0, -1))
+      if (res.result.was_answer) setAnswered((a) => a.slice(0, -1))
       showState(res.state)
       toast(`Undid ${res.result.undone.toLowerCase()}`)
     } catch (e) {
@@ -194,12 +205,57 @@ export function Study({ deckId, paused, onOpenPalette }: Props) {
     }
   }, [backend, handleError, showState, state, toast])
 
+  const performAction = useCallback(
+    async (action: CardAction) => {
+      if (!card || busy.current) return
+      if (action.kind === 'info') return setSheet('info')
+      if (action.kind === 'edit') return setSheet('edit')
+      if (action.kind === 'replay') return audio.play(audioUrls(side === 'question' ? 'q' : 'a'))
+      busy.current = true
+      try {
+        if (action.kind === 'flag') {
+          const flag = await backend.setFlag(card.card_id, action.flag)
+          setState((st) => (st?.card ? { ...st, card: { ...st.card, flag }, can_undo: true, undo_label: 'Set Flag' } : st))
+          toast(flag ? `${FLAG_NAMES[flag]} flag` : 'Flag removed')
+        } else if (action.kind === 'mark') {
+          const marked = await backend.toggleMark(card.note_id)
+          setState((st) => (st?.card ? { ...st, card: { ...st.card, marked }, can_undo: true } : st))
+          toast(marked ? 'Note marked' : 'Note unmarked')
+        } else {
+          const next = action.kind === 'bury' ? await backend.bury(card.card_id, action.note) : await backend.suspend(card.card_id, action.note)
+          showState(next)
+          const what = action.note ? 'Note' : 'Card'
+          toast(`${what} ${action.kind === 'bury' ? 'buried' : 'suspended'} · ${modKey}Z to undo`)
+        }
+      } catch (e) {
+        await handleError(e)
+      } finally {
+        busy.current = false
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [backend, card, handleError, showState, side, toast],
+  )
+
+  const reloadCard = useCallback(async () => {
+    if (!card) return
+    const rendered = await backend.renderCard(card.card_id)
+    // The typed-answer comparison depends on the (possibly edited) answer field.
+    if (rendered.type_answer && side === 'answer') {
+      setTypeAnswerHtml(await backend.compareAnswer(card.card_id, typed.current))
+    }
+    setState((st) => (st?.card ? { ...st, card: { ...st.card, rendered }, can_undo: true, undo_label: 'Update Note' } : st))
+    setSeq((n) => n + 1) // re-render at the current side
+    toast('Note saved')
+  }, [backend, card, side, toast])
+
   const handleKey = useCallback(
     (e: CardKeyEvent & { repeat?: boolean }) => {
       const mod = e.metaKey || e.ctrlKey
       const key = e.key.toLowerCase()
       if (mod && key === 'k') return onOpenPalette()
       if (mod && key === 'z') return void undo()
+      if (card && e.ctrlKey && /^[1-7]$/.test(e.key)) return void performAction({ kind: 'flag', flag: Number(e.key) })
       if (mod || e.altKey || e.repeat) return
       if (!card) {
         // Finished screen: Enter goes back; Space does nothing so a fast
@@ -212,18 +268,33 @@ export function Study({ deckId, paused, onOpenPalette }: Props) {
         else void answer(3)
       } else if (/^[1-4]$/.test(e.key) && side === 'answer') {
         void answer(Number(e.key) as Rating)
+      } else {
+        // Anki desktop's reviewer shortcuts
+        const action: CardAction | undefined = {
+          '*': { kind: 'mark' },
+          '-': { kind: 'bury', note: false },
+          '=': { kind: 'bury', note: true },
+          '@': { kind: 'suspend', note: false },
+          '!': { kind: 'suspend', note: true },
+          r: { kind: 'replay' },
+          e: { kind: 'edit' },
+          i: { kind: 'info' },
+        }[key] as CardAction | undefined
+        if (action) void performAction(action)
       }
     },
-    [answer, card, flip, onOpenPalette, side, undo],
+    [answer, card, flip, onOpenPalette, performAction, side, undo],
   )
 
   useEffect(() => {
-    if (paused) return
+    if (inputPaused) return
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement
       if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return
       const mod = e.metaKey || e.ctrlKey
-      const handled = e.key === ' ' || e.key === 'Enter' || /^[1-4]$/.test(e.key) || (mod && e.key.toLowerCase() === 'z')
+      const handled = mod
+        ? e.key.toLowerCase() === 'z' || (e.ctrlKey && /^[1-7]$/.test(e.key))
+        : e.key === ' ' || e.key === 'Enter' || /^[1-4]$/.test(e.key) || '*-=@!rReEiI'.includes(e.key)
       if (!handled) return
       // Let Enter/Space activate a focused button on the finished screen.
       if ((e.key === ' ' || e.key === 'Enter') && t.tagName === 'BUTTON' && !card) return
@@ -232,9 +303,9 @@ export function Study({ deckId, paused, onOpenPalette }: Props) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [card, handleKey, paused])
+  }, [card, handleKey, inputPaused])
 
-  const onCardKey = useCallback((e: CardKeyEvent) => !paused && handleKey(e), [handleKey, paused])
+  const onCardKey = useCallback((e: CardKeyEvent) => !inputPaused && handleKey(e), [handleKey, inputPaused])
 
   const onPlay = useCallback(
     (ref: string) => {
@@ -277,16 +348,25 @@ export function Study({ deckId, paused, onOpenPalette }: Props) {
           )
         }
         right={
-          <Button
-            variant="ghost"
-            iconOnly
-            onClick={() => void undo()}
-            disabled={!state?.can_undo}
-            aria-label="Undo last answer"
-            title={`Undo (${modKey}Z)`}
-          >
-            <RotateCcw size={17} strokeWidth={1.9} />
-          </Button>
+          <>
+            <Button
+              variant="ghost"
+              iconOnly
+              onClick={() => void undo()}
+              disabled={!state?.can_undo}
+              aria-label={state?.undo_label ? `Undo ${state.undo_label}` : 'Undo'}
+              title={`Undo${state?.undo_label ? ` ${state.undo_label}` : ''} (${modKey}Z)`}
+            >
+              <RotateCcw size={17} strokeWidth={1.9} />
+            </Button>
+            <ActionsMenu
+              flag={card?.flag ?? 0}
+              marked={card?.marked ?? false}
+              hasAudio={(card?.rendered.audio.length ?? 0) > 0}
+              disabled={!card}
+              onAction={(a) => void performAction(a)}
+            />
+          </>
         }
       />
       <div
@@ -317,13 +397,17 @@ export function Study({ deckId, paused, onOpenPalette }: Props) {
                 side={side}
                 theme={theme}
                 mediaBaseUrl={mediaBase}
+                typeAnswerHtml={typeAnswerHtml}
                 onKey={onCardKey}
                 onTap={flip}
                 onPlay={onPlay}
+                onTyped={(v) => (typed.current = v)}
               />
               {card && (card.flag > 0 || card.marked) && (
                 <div className="card-badges">
-                  {card.flag > 0 && <Flag size={14} fill={FLAG_COLORS[card.flag]} color={FLAG_COLORS[card.flag]} aria-label="Flagged" />}
+                  {card.flag > 0 && (
+                    <Flag size={14} fill={`var(--flag-${card.flag})`} color={`var(--flag-${card.flag})`} aria-label={`${FLAG_NAMES[card.flag]} flag`} />
+                  )}
                   {card.marked && <Star size={14} fill="currentColor" aria-label="Marked" />}
                 </div>
               )}
@@ -370,6 +454,13 @@ export function Study({ deckId, paused, onOpenPalette }: Props) {
           </footer>
         </>
       )}
+      <CardInfoPanel cardId={card?.card_id ?? null} open={sheet === 'info'} onClose={() => setSheet(null)} />
+      <NoteEditor
+        noteId={card?.note_id ?? null}
+        open={sheet === 'edit'}
+        onClose={() => setSheet(null)}
+        onSaved={() => void reloadCard()}
+      />
     </div>
   )
 }

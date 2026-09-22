@@ -22,9 +22,12 @@ interface Props {
   side: CardSide
   theme: Theme
   mediaBaseUrl: string
+  /** Typed-answer comparison HTML for the answer side's #typeans-result slot. */
+  typeAnswerHtml?: string | null
   onKey(e: CardKeyEvent): void
   onTap(): void
   onPlay(ref: string): void
+  onTyped?(value: string): void
 }
 
 // Card scripts may not talk to the network (our API included) or navigate us.
@@ -56,13 +59,13 @@ function buildSrcDoc(mediaBaseUrl: string): string {
  * only: opaque origin, so deck JS can't reach the app or its storage).
  * One document persists for the whole session, like Anki's reviewer webview.
  */
-export function CardFrame({ renderKey, rendered, side, theme, mediaBaseUrl, onKey, onTap, onPlay }: Props) {
+export function CardFrame({ renderKey, rendered, side, theme, mediaBaseUrl, typeAnswerHtml, onKey, onTap, onPlay, onTyped }: Props) {
   const frame = useRef<HTMLIFrameElement>(null)
   const ready = useRef(false)
   const pending = useRef<object[]>([])
   const lastRendered = useRef<string | null>(null)
-  const handlers = useRef({ onKey, onTap, onPlay })
-  handlers.current = { onKey, onTap, onPlay }
+  const handlers = useRef({ onKey, onTap, onPlay, onTyped })
+  handlers.current = { onKey, onTap, onPlay, onTyped }
 
   const srcDoc = useMemo(() => buildSrcDoc(mediaBaseUrl), [mediaBaseUrl])
 
@@ -86,6 +89,7 @@ export function CardFrame({ renderKey, rendered, side, theme, mediaBaseUrl, onKe
       } else if (msg.type === 'key') handlers.current.onKey(msg)
       else if (msg.type === 'tap') handlers.current.onTap()
       else if (msg.type === 'play' && typeof msg.ref === 'string') handlers.current.onPlay(msg.ref)
+      else if (msg.type === 'typed' && typeof msg.value === 'string') handlers.current.onTyped?.(msg.value)
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
@@ -119,6 +123,11 @@ export function CardFrame({ renderKey, rendered, side, theme, mediaBaseUrl, onKe
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [renderKey, rendered, side])
+
+  useEffect(() => {
+    if (side === 'answer' && typeAnswerHtml != null) send({ type: 'typeans-result', html: typeAnswerHtml })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [typeAnswerHtml, side, renderKey])
 
   return (
     <iframe

@@ -1,0 +1,58 @@
+/* Editor iframe chrome. Colors arrive as the app's theme tokens (via postMessage). */
+html { -webkit-text-size-adjust: 100%; }
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 0 2px 24px;
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  color: var(--text);
+  background: var(--surface-raised);
+}
+#toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  gap: 2px;
+  padding: 8px 0 10px;
+  background: var(--surface-raised);
+}
+#toolbar button {
+  min-width: 32px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+#toolbar button:hover { background: var(--surface-hover); color: var(--text); }
+#toolbar .sep { width: 1px; margin: 4px 6px; background: var(--border); }
+.field { margin-bottom: 16px; }
+.field__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.field__label { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--text-muted); }
+.field__toggle {
+  height: 22px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--border);
+  background: transparent; color: var(--text-subtle); font: 600 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace; cursor: pointer;
+}
+.field__toggle[aria-pressed='true'] { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+.field__rich, .field__code {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+  overflow-wrap: anywhere;
+  transition: border-color 120ms, box-shadow 120ms;
+}
+.field__rich:focus, .field__code:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.field__code { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; resize: vertical; }
+.field__rich img { max-width: 100%; height: auto; border-radius: 6px; }
+.field__rich .cloze, .field__rich b { font-weight: 700; }
+@media (max-width: 600px) { body { font-size: 16px; } .field__code { font-size: 16px; } }

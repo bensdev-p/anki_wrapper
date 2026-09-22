@@ -60,6 +60,25 @@ export type TokenName =
   | 'heat-4'
   | 'chart-grid'
   | 'chart-axis'
+  // Anki's card flags (1 red … 7 purple); the same in every theme
+  | 'flag-1'
+  | 'flag-2'
+  | 'flag-3'
+  | 'flag-4'
+  | 'flag-5'
+  | 'flag-6'
+  | 'flag-7'
+
+// Anki's flag colours: meaning is shared across devices, so they don't vary by theme.
+const FLAGS = {
+  'flag-1': '#e25252',
+  'flag-2': '#f0a14a',
+  'flag-3': '#4caf50',
+  'flag-4': '#4a90e2',
+  'flag-5': '#e57bc2',
+  'flag-6': '#3cc7c0',
+  'flag-7': '#9b6ae0',
+} as const
 
 export interface Theme {
   id: string
@@ -117,6 +136,7 @@ const light: Theme = {
     'heat-4': '#184f95',
     'chart-grid': '#e8e7e1',
     'chart-axis': '#c3c2b7',
+    ...FLAGS,
   },
 }
 
@@ -168,6 +188,7 @@ const dark: Theme = {
     'heat-4': '#b7d3f6',
     'chart-grid': '#2a2b31',
     'chart-axis': '#3a3b43',
+    ...FLAGS,
   },
 }
 
@@ -219,6 +240,7 @@ const sepia: Theme = {
     'heat-4': '#184f95',
     'chart-grid': '#e6dac4',
     'chart-axis': '#c9b999',
+    ...FLAGS,
   },
 }
 
@@ -270,6 +292,7 @@ const dusk: Theme = {
     'heat-4': '#b7d3f6',
     'chart-grid': '#342e28',
     'chart-axis': '#463e36',
+    ...FLAGS,
   },
 }
 
@@ -321,6 +344,7 @@ const highContrast: Theme = {
     'heat-4': '#b7d3f6',
     'chart-grid': '#3a3a3a',
     'chart-axis': '#8a8a8a',
+    ...FLAGS,
   },
 }
 

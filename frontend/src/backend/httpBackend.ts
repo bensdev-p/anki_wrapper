@@ -1,6 +1,9 @@
 import { BackendError, type AnkiBackend } from './AnkiBackend'
 import type {
   AnswerResponse,
+  CardInfo,
+  NoteForEdit,
+  RenderedCard,
   CollectionInfo,
   DeckNode,
   Rating,
@@ -55,6 +58,21 @@ export class HttpBackend implements AnkiBackend {
       body: JSON.stringify({ card_id: cardId, rating, ms_taken: Math.round(msTaken) }),
     })
   undo = () => this.request<UndoResponse>('/study/undo', { method: 'POST' })
+  setFlag = async (cardId: number, flag: number) =>
+    (await this.request<{ flag: number }>(`/cards/${cardId}/flag`, { method: 'POST', body: JSON.stringify({ flag }) })).flag
+  toggleMark = async (noteId: number) =>
+    (await this.request<{ marked: boolean }>(`/notes/${noteId}/mark`, { method: 'POST' })).marked
+  suspend = (cardId: number, wholeNote: boolean) =>
+    this.request<StudyState>('/study/suspend', { method: 'POST', body: JSON.stringify({ card_id: cardId, whole_note: wholeNote }) })
+  bury = (cardId: number, wholeNote: boolean) =>
+    this.request<StudyState>('/study/bury', { method: 'POST', body: JSON.stringify({ card_id: cardId, whole_note: wholeNote }) })
+  compareAnswer = async (cardId: number, typed: string) =>
+    (await this.request<{ html: string }>(`/cards/${cardId}/compare`, { method: 'POST', body: JSON.stringify({ typed }) })).html
+  cardInfo = (cardId: number) => this.request<CardInfo>(`/cards/${cardId}/info`)
+  renderCard = (cardId: number) => this.request<RenderedCard>(`/cards/${cardId}/render`)
+  getNote = (noteId: number) => this.request<NoteForEdit>(`/notes/${noteId}`)
+  updateNote = (noteId: number, fields: Record<string, string>, tags?: string[]) =>
+    this.request<NoteForEdit>(`/notes/${noteId}`, { method: 'PUT', body: JSON.stringify({ fields, tags }) })
   search = (query: string, limit = 50) =>
     this.request<SearchResult>(
       `/search?${new URLSearchParams({ q: query, limit: String(limit) })}`,

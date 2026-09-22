@@ -25,6 +25,26 @@ The goal is Quizlet-level polish with Anki-level power.
   The default follows the system light/dark setting, and your choice is remembered.
 - Command palette: `⌘K` / `Ctrl+K` to jump to a deck, switch theme or start studying.
 
+## Review tools (Anki's reviewer shortcuts)
+
+| Action | Key | Notes |
+|---|---|---|
+| Flag red … purple | `Ctrl+1` … `Ctrl+7` | Same flag again clears it |
+| Mark / unmark note | `*` | Adds or removes the `marked` tag |
+| Edit note | `E` | Sandboxed rich editor with an HTML source toggle per field |
+| Card info | `I` | Dates, intervals, FSRS stability, difficulty and retrievability, full history |
+| Replay audio | `R` | |
+| Bury card / note | `-` / `=` | |
+| Suspend card / note | `@` / `!` | |
+| Undo | `⌘Z` / `Ctrl+Z` | Covers all of the above, plus answers |
+
+Everything is also in the **⋯** menu, for the phone. Type-in-the-answer cards
+(`[[type:Field]]`, including cloze) are graded with Anki's own comparison.
+
+The note editor saves only the fields she changed, never touches note types
+(which would force a one-way sync), and refuses edits that would blank a card
+(an empty first field, or removing a cloze a card depends on).
+
 ## Milestone 2: statistics
 
 - **Stats** tab (or `⌘K` → "Open statistics"), filtered by deck and period (1 month /

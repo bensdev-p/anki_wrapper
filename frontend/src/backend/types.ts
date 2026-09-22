@@ -34,6 +34,8 @@ export interface RenderedCard {
   body_class: string
   audio: AudioRef[]
   autoplay: boolean
+  /** Has a [[type:…]] box; the answer side has a #typeans-result slot. */
+  type_answer: boolean
 }
 
 export type QueueKind = 'new' | 'learning' | 'review'
@@ -79,7 +81,7 @@ export interface AnswerResponse {
 }
 
 export interface UndoResponse {
-  result: { undone: string }
+  result: { undone: string; was_answer: boolean }
   state: StudyState
 }
 
@@ -185,4 +187,57 @@ export interface SyncStatus {
   media_summary: string
   transferred_bytes: number | null
   total_bytes: number | null
+}
+
+// Card info & note editing (mirror service/types.py)
+
+export interface RevlogEntry {
+  /** Unix seconds. */
+  time: number
+  kind: 'learning' | 'review' | 'relearning' | 'filtered' | 'manual' | 'rescheduled'
+  button: number
+  interval_secs: number
+  ease: number
+  taken_secs: number
+  stability_days: number | null
+  difficulty: number | null
+}
+
+export interface CardInfo {
+  card_id: number
+  note_id: number
+  deck: string
+  notetype: string
+  card_type: string
+  added: number
+  first_review: number | null
+  latest_review: number | null
+  due: string | null
+  interval_days: number
+  ease: number | null
+  reviews: number
+  lapses: number
+  average_secs: number
+  total_secs: number
+  fsrs: boolean
+  stability_days: number | null
+  difficulty: number | null
+  retrievability: number | null
+  desired_retention: number | null
+  preset: string
+  tags: string[]
+  revlog: RevlogEntry[]
+}
+
+export interface NoteField {
+  name: string
+  html: string
+}
+
+export interface NoteForEdit {
+  note_id: number
+  notetype: string
+  fields: NoteField[]
+  tags: string[]
+  css: string
 }

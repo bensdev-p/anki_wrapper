@@ -95,7 +95,13 @@
     var msg = e.data
     if (!msg || typeof msg !== 'object') return
     if (msg.type === 'render') render(msg)
-    else if (msg.type === 'theme') {
+    else if (msg.type === 'typeans-result') {
+      var slot = document.getElementById('typeans-result')
+      if (slot) {
+        slot.innerHTML = msg.html
+        slot.classList.add('lacuna-reveal')
+      }
+    } else if (msg.type === 'theme') {
       themeClass = msg.bodyClass
       document.documentElement.style.setProperty('--canvas', msg.canvas)
       document.documentElement.style.setProperty('--fg', msg.fg)
@@ -117,16 +123,22 @@
     if (!interactive && !(window.getSelection && String(window.getSelection()))) post({ type: 'tap' })
   })
 
-  var KEYS = { ' ': 1, Enter: 1, '1': 1, '2': 1, '3': 1, '4': 1, Escape: 1, z: 1, Z: 1, k: 1, K: 1 }
+  // Keys the study screen handles (Anki desktop's reviewer shortcuts).
+  var PLAIN = ' |Enter|1|2|3|4|Escape|*|-|=|@|!|r|R|e|E|i|I|.'.split('|')
+  var WITH_MOD = 'z|Z|k|K|1|2|3|4|5|6|7'.split('|')
   document.addEventListener('keydown', function (e) {
     var t = e.target
     var typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)
     if (typing && !(e.key === 'Enter' || e.key === 'Escape')) return
-    if (!KEYS[e.key]) return
     var mod = e.metaKey || e.ctrlKey
-    if ((e.key === 'z' || e.key === 'Z' || e.key === 'k' || e.key === 'K') && !mod) return
+    if (mod ? WITH_MOD.indexOf(e.key) < 0 : PLAIN.indexOf(e.key) < 0) return
     e.preventDefault()
     post({ type: 'key', key: e.key, metaKey: e.metaKey, ctrlKey: e.ctrlKey, shiftKey: e.shiftKey, altKey: e.altKey })
+  })
+
+  // Typed answers: report the text as she types; show the comparison when it arrives.
+  document.addEventListener('input', function (e) {
+    if (e.target && e.target.id === 'typeans') post({ type: 'typed', value: e.target.value })
   })
 
   post({ type: 'ready' })
