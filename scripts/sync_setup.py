@@ -102,7 +102,10 @@ def main() -> None:
     try:
         col = Collection(str(col_path))
     except DBError:
-        sys.exit("The collection is open in the running app. Stop the app (Ctrl+C in dev.sh) and try again.")
+        sys.exit(
+            "The collection is open in the running app. Stop it first "
+            "(Ctrl+C in dev.sh, or `sudo systemctl stop lacuna`) and try again."
+        )
 
     try:
         state = sync_store.load(folder)
@@ -160,8 +163,9 @@ def main() -> None:
     finally:
         col.close()
 
-    print("\nStart the app on the synced collection with:")
-    print("  ./scripts/dev.sh --synced")
+    print("\nRun the app on the synced collection:")
+    print("  ./scripts/install_pi.sh          # as a service, at boot (restarts it if running)")
+    print("  ./scripts/dev.sh --synced        # or just for now, in this terminal")
 
 
 if __name__ == "__main__":

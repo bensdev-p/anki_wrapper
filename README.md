@@ -155,9 +155,38 @@ the API serve the UI:
 HOST=0.0.0.0 ./scripts/run_backend.sh      # UI + API on http://<pi>.local:8000
 ```
 
+### Run it permanently (recommended on the Pi)
+
+```bash
+./scripts/install_pi.sh             # her synced collection (after sync_setup.py)
+./scripts/install_pi.sh --sample    # or the sample collection, to try it out
+```
+
+This builds the app and installs a `lacuna` systemd service that starts at boot,
+restarts if it crashes, and serves everything on port **8000**:
+
+```
+http://<pi-hostname>.local:8000
+```
+
+- Update: `git pull && ./scripts/install_pi.sh`
+- Logs: `journalctl -u lacuna -f`
+- Stop / start: `sudo systemctl stop lacuna` / `sudo systemctl start lacuna`
+
+The service backs up the collection every 30 minutes of use and when it stops,
+using Anki's own backups (kept in `backups/` next to the collection, rotated by
+Anki's backup settings).
+
 ### Add to Home Screen (iPhone)
 
-In Safari, tap **Share → Add to Home Screen** to get a full-screen app icon.
+In Safari, open the address above, then tap **Share → Add to Home Screen**. It
+opens full-screen with its own icon, like an app. If the Pi drops off the Wi-Fi,
+the app shows "Reconnecting…", and an answer she taps meanwhile is sent once
+the Pi is back. It's never counted twice, because the server rejects a duplicate.
+
+> Offline caching (a service worker) needs HTTPS, which a plain home-network
+> address doesn't have. The app needs the Pi to study anyway, since that's
+> where Anki runs.
 
 ## The sample collection
 
@@ -219,7 +248,8 @@ studying there, which she already does.
 1. In **Anki desktop**: *File → Export…* → format **Anki Collection Package
    (.colpkg)**, tick **Include media** → Export. This doesn't change her collection.
 2. Copy the `.colpkg` to the Pi (AirDrop to the Mac, then `scp`).
-3. Import it into `data/demo/`:
+3. Import it into `data/demo/` (re-importing with `--force` keeps the previous
+   copy as `data/demo-previous-<date>` until you delete it):
 
    ```bash
    .venv/bin/python scripts/import_colpkg.py ~/collection-2026-09-22.colpkg

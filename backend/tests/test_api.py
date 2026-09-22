@@ -134,3 +134,15 @@ def test_browse_paging_and_select_all_action(client: TestClient) -> None:
     assert client.post("/api/study/undo").json()["result"]["undone"] == "Suspend"
     assert client.post("/api/browse/action", json={"selection": {}, "action": "suspend"}).status_code == 422
     assert client.post("/api/browse/action", json={"selection": {"card_ids": [1]}, "action": "delete"}).status_code == 422
+
+
+def test_backup_on_shutdown_for_real_collections(col_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Non-sample collections get an Anki backup when the server stops."""
+    monkeypatch.setenv("COLLECTION_PATH", str(col_path))
+    from api.main import app
+
+    with TestClient(app) as c:
+        did = _deck_id(c, "Step 1")
+        card = c.post(f"/api/study/deck/{did}").json()["card"]
+        c.post("/api/study/answer", json={"card_id": card["card_id"], "rating": 3, "ms_taken": 1000})
+    assert list((col_path.parent / "backups").glob("*.colpkg"))

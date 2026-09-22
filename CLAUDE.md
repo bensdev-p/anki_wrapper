@@ -83,6 +83,7 @@ python3 -m venv .venv && .venv/bin/pip install -r backend/requirements.txt
 .venv/bin/python scripts/make_sample_collection.py [--force]
 ./scripts/dev.sh [--synced]                   # API :8000 (localhost) + Vite :5173 (LAN)
 .venv/bin/python scripts/sync_setup.py        # sign this device in to AnkiWeb (on the Pi)
+./scripts/install_pi.sh [--demo|--sample]     # systemd service on the Pi, port 8000
 .venv/bin/pytest                              # backend tests
 (cd frontend && npx tsc -b && npm run lint)   # frontend checks
 .venv/bin/python scripts/benchmark.py         # 100k-card timings

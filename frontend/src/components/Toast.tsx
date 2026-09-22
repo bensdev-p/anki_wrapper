@@ -1,4 +1,6 @@
+import { WifiOff } from 'lucide-react'
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react'
+import { useOnline } from '../lib/connection'
 
 interface Toast {
   id: number
@@ -19,6 +21,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={show}>
       {children}
+      <OfflineBanner />
       <div className="toasts" role="status" aria-live="polite">
         {toasts.map((t) => (
           <div key={t.id} className={`toast toast--${t.tone}`}>
@@ -32,4 +35,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
 export function useToast() {
   return useContext(ToastContext)
+}
+
+/** Shown while the Pi can't be reached; disappears by itself when it's back. */
+function OfflineBanner() {
+  const online = useOnline()
+  if (online) return null
+  return (
+    <div className="offline-banner" role="alert">
+      <WifiOff size={15} />
+      <span>Can’t reach Lacuna. Reconnecting…</span>
+    </div>
+  )
 }

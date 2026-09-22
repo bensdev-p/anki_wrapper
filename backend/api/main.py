@@ -6,6 +6,7 @@ Run (single worker; the collection must only be opened once):
 
 from __future__ import annotations
 
+import asyncio
 import mimetypes
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -44,16 +45,45 @@ mimetypes.add_type("audio/wav", ".wav")
 mimetypes.add_type("image/webp", ".webp")
 
 
+# Anki desktop takes a backup every 30 minutes of use and on close; so does the
+# server, for any real collection (the synthetic sample doesn't need them).
+BACKUP_EVERY_SECS = 30 * 60
+
+
+def _backup(host: CollectionHost, force: bool):  # type: ignore[no-untyped-def]
+    folder = host.path.parent / "backups"
+    folder.mkdir(exist_ok=True)
+    # force=False lets Anki apply its own interval and skip unchanged collections.
+    return lambda col: col.create_backup(backup_folder=str(folder), force=force, wait_for_completion=True)
+
+
+async def _periodic_backups(host: CollectionHost) -> None:
+    while True:
+        await asyncio.sleep(BACKUP_EVERY_SECS)
+        try:
+            await host.run(_backup(host, force=False))
+        except Exception as err:  # never let a failed backup take the server down
+            print(f"backup failed: {err}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     host = CollectionHost(resolve_collection_path())
     host.open()
     app.state.host = host
     app.state.sync = SyncManager(host)
+    backups = None if host.path == DEV_COLLECTION.resolve() else asyncio.create_task(_periodic_backups(host))
     try:
         yield
     finally:
+        if backups:
+            backups.cancel()
         await app.state.sync.wait()
+        if backups:
+            try:
+                await host.run(_backup(host, force=False))
+            except Exception as err:
+                print(f"backup on shutdown failed: {err}")
         host.close()
 
 

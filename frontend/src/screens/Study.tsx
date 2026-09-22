@@ -16,6 +16,7 @@ import { useDecks } from '../lib/decks'
 import { modKey } from '../lib/platform'
 import { navigate } from '../lib/router'
 import { requestSync, SYNCED_EVENT } from '../lib/sync'
+import { whenOnline } from '../lib/connection'
 import { useTheme } from '../themes/ThemeProvider'
 
 interface Answered {
@@ -92,6 +93,7 @@ export function Study({ deckId, paused, onOpenPalette }: Props) {
   const typed = useRef('')
   const [typeAnswerHtml, setTypeAnswerHtml] = useState<string | null>(null)
   const [sheet, setSheet] = useState<'info' | 'edit' | null>(null)
+  const [sending, setSending] = useState(false)
   const inputPaused = paused || sheet !== null
 
   const card = state?.card ?? null
@@ -176,15 +178,31 @@ export function Study({ deckId, paused, onOpenPalette }: Props) {
       if (!card || side !== 'answer' || busy.current) return
       busy.current = true
       const ms = performance.now() - shownAt.current
+      setSending(true)
       try {
-        const res = await backend.answer(card.card_id, rating, ms)
-        setAnswered((a) => [...a, { rating, ms }])
-        if (res.result.leech) toast('Card marked as a leech', 'info')
-        showState(res.state)
+        // If the Wi-Fi drops, keep the answer and send it when the Pi is back.
+        // Retrying is safe: if the first attempt did arrive, the server rejects
+        // the repeat as a stale card and we just refresh.
+        for (;;) {
+          try {
+            const res = await backend.answer(card.card_id, rating, ms)
+            setAnswered((a) => [...a, { rating, ms }])
+            if (res.result.leech) toast('Card marked as a leech', 'info')
+            showState(res.state)
+            break
+          } catch (e) {
+            if (e instanceof BackendError && e.kind === 'Network') {
+              await whenOnline()
+              continue
+            }
+            throw e
+          }
+        }
       } catch (e) {
         await handleError(e)
       } finally {
         busy.current = false
+        setSending(false)
       }
     },
     [backend, card, handleError, showState, side, toast],
@@ -433,7 +451,7 @@ export function Study({ deckId, paused, onOpenPalette }: Props) {
                   <Kbd className="show-answer__kbd">Space</Kbd>
                 </button>
               ) : (
-                <div className="ease-buttons" role="group" aria-label="Rate your recall">
+                <div className={`ease-buttons ${sending ? 'is-sending' : ''}`} role="group" aria-label="Rate your recall">
                   {BUTTONS.map((b, i) => (
                     <button key={b.rating} className={`ease ease--${b.tone}`} onClick={() => void answer(b.rating)}>
                       <span className="ease__ivl tabular">{card?.button_labels[i]}</span>

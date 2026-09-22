@@ -2691,3 +2691,29 @@
     bottom: calc(56px + var(--sp-6) + env(safe-area-inset-bottom));
   }
 }
+
+/* Connection */
+
+.offline-banner {
+  position: fixed;
+  z-index: 60;
+  top: calc(env(safe-area-inset-top) + var(--sp-2));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--radius-full);
+  background: var(--text);
+  color: var(--bg);
+  font-size: var(--fs-sm);
+  font-weight: 550;
+  box-shadow: var(--shadow-md);
+  animation: toast-in var(--dur-slow) var(--ease-out);
+}
+.ease-buttons.is-sending {
+  opacity: 0.6;
+  pointer-events: none;
+  transition: opacity var(--dur-base) var(--ease-out);
+}

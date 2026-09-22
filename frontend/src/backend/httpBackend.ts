@@ -1,4 +1,5 @@
 import { BackendError, type AnkiBackend } from './AnkiBackend'
+import { reportOnline } from '../lib/connection'
 import type {
   AnswerResponse,
   BrowseActionKind,
@@ -34,8 +35,12 @@ export class HttpBackend implements AnkiBackend {
         headers: { 'Content-Type': 'application/json', ...init?.headers },
       })
     } catch {
+      reportOnline(false)
       throw new BackendError(0, 'Network', 'Can’t reach the study server.')
     }
+    // A proxy (Vite) answers 502/504 when the API itself is down.
+    reportOnline(res.status !== 502 && res.status !== 504)
+    if (res.status === 502 || res.status === 504) throw new BackendError(0, 'Network', 'Can’t reach the study server.')
     if (!res.ok) {
       let kind = 'HttpError'
       let detail = res.statusText

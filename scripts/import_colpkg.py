@@ -18,6 +18,7 @@ import argparse
 import shutil
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "backend"))
@@ -72,7 +73,10 @@ def main() -> None:
     if dest.exists():
         if not args.force:
             sys.exit(f"{dest} already exists; pass --force to replace it.")
-        shutil.rmtree(dest)
+        # Keep the old copy (it may hold reviews done in the app) until the new one is in place.
+        kept = dest.with_name(f"{dest.name}-previous-{time.strftime('%Y%m%d-%H%M%S')}")
+        dest.rename(kept)
+        print(f"Moved the old copy to {kept} (delete it once you're happy).")
 
     print(f"Importing {colpkg} → {dest} (this can take a minute for large collections)…")
     col_path = import_colpkg(colpkg, dest)
