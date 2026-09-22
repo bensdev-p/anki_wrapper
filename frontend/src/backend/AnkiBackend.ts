@@ -5,6 +5,7 @@ import type {
   Rating,
   SearchResult,
   StatsSummary,
+  SyncStatus,
   StudyState,
   UndoResponse,
 } from './types'
@@ -29,6 +30,15 @@ export interface AnkiBackend {
   search(query: string, limit?: number): Promise<SearchResult>
   /** Stats for a deck (with subdecks) or, with null, the whole collection. */
   stats(deckId: number | null, days: number): Promise<StatsSummary>
+  /** AnkiWeb sync state (cheap; poll while a sync runs). */
+  syncStatus(): Promise<SyncStatus>
+  /** Start a normal two-way sync in the background. */
+  sync(): Promise<SyncStatus>
+  /**
+   * Replace this device's copy with AnkiWeb's. Only valid when the status
+   * says `needs: 'full_download' | 'full_sync'`. There is no upload counterpart.
+   */
+  fullDownload(): Promise<SyncStatus>
   /** Absolute base URL that card HTML media references resolve against. */
   mediaBaseUrl(): string
 }

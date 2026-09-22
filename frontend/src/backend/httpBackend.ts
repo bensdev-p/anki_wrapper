@@ -6,6 +6,7 @@ import type {
   Rating,
   SearchResult,
   StatsSummary,
+  SyncStatus,
   StudyState,
   UndoResponse,
 } from './types'
@@ -62,5 +63,8 @@ export class HttpBackend implements AnkiBackend {
     this.request<StatsSummary>(
       `/stats?${new URLSearchParams({ days: String(days), ...(deckId === null ? {} : { deck_id: String(deckId) }) })}`,
     )
+  syncStatus = () => this.request<SyncStatus>('/sync')
+  sync = () => this.request<SyncStatus>('/sync', { method: 'POST' })
+  fullDownload = () => this.request<SyncStatus>('/sync/full-download', { method: 'POST' })
   mediaBaseUrl = () => new URL(this.base + '/media/', window.location.href).href
 }

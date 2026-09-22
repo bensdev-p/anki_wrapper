@@ -12,6 +12,7 @@ import { TopBar } from '../components/TopBar'
 import { useDecks } from '../lib/decks'
 import { modKey } from '../lib/platform'
 import { navigate } from '../lib/router'
+import { requestSync, SYNCED_EVENT } from '../lib/sync'
 import { useTheme } from '../themes/ThemeProvider'
 
 interface Answered {
@@ -106,10 +107,22 @@ export function Study({ deckId, paused, onOpenPalette }: Props) {
     )
     return () => {
       cancelled = true
-      // Leaving the screen: deck counts have changed.
+      // Leaving the screen: deck counts have changed, and the session is worth syncing.
       void reloadDecks()
+      requestSync()
     }
   }, [backend, deckId, showState, reloadDecks])
+
+  // A sync may have brought reviews from another device: refresh the queue,
+  // unless she's looking at an answer (it'll refresh on the next card anyway).
+  useEffect(() => {
+    const onSynced = () => {
+      if (busy.current || side === 'answer') return
+      backend.studyState().then(showState, () => {})
+    }
+    window.addEventListener(SYNCED_EVENT, onSynced)
+    return () => window.removeEventListener(SYNCED_EVENT, onSynced)
+  }, [backend, showState, side])
 
   // Clock for the session timer.
   useEffect(() => {

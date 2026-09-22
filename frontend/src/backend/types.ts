@@ -101,6 +101,7 @@ export interface CollectionInfo {
   collection: string
   is_sample: boolean
   card_count: number
+  sync_enabled: boolean
 }
 
 // Statistics (mirror service/types.py)
@@ -165,4 +166,23 @@ export interface StatsSummary {
   retention: Record<RetentionPeriod, RetentionCounts>
   /** FSRS average probability of recall (0–1). */
   average_retrievability: number | null
+}
+
+// Sync (mirror api/sync_manager.py)
+
+export interface SyncStatus {
+  /** This collection syncs and a sync key is saved on the server. */
+  enabled: boolean
+  username: string | null
+  phase: 'idle' | 'syncing' | 'downloading'
+  /** A decision only the user can make. There is never an "upload" option. */
+  needs: 'full_download' | 'full_sync' | 'server_empty' | null
+  error: string | null
+  server_message: string | null
+  /** Unix seconds. */
+  last_synced_at: number | null
+  media_active: boolean
+  media_summary: string
+  transferred_bytes: number | null
+  total_bytes: number | null
 }

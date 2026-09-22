@@ -137,7 +137,45 @@ Rebuild it at any time (e.g. after studying through it):
 .venv/bin/python scripts/make_sample_collection.py --force
 ```
 
-## Using a copy of her collection
+## Syncing with AnkiWeb (her real collection)
+
+The Pi can join her MacBook and iMac as **one more Anki device**. It keeps its own
+collection in `data/synced/` and syncs reviews both ways through AnkiWeb, just
+like Anki desktop.
+
+One-time setup, **on the Pi** (stop the app first):
+
+```bash
+.venv/bin/python scripts/sync_setup.py
+```
+
+It asks for her AnkiWeb email and password, downloads the collection (a few
+minutes for a big AnKing collection) and then the media. Then run:
+
+```bash
+./scripts/dev.sh --synced
+```
+
+The app then syncs when it opens, after each study session, when she comes back
+to it after 10+ minutes, and whenever she taps **Sync**.
+
+**Safety design**
+- The password is typed on the Pi and never stored. Only AnkiWeb's sync key is
+  kept, in `data/synced/sync.json` (owner-only permissions). Changing her
+  AnkiWeb password revokes it, and `sync_setup.py --logout` forgets it.
+- **This app never uploads a whole collection to AnkiWeb**, so it can't
+  overwrite her cards. If Anki reports changes it can't merge (e.g. a note type
+  edited on the Mac without syncing), the only option offered is replacing
+  *this device's* copy with AnkiWeb's. AnkiWeb and her other devices are never
+  replaced.
+- A backup (`data/synced/backups/`, Anki's own `.colpkg` format) is taken before
+  syncing, and always before a download.
+- Only `data/synced/` can sync. The sample and imported demo copies never do.
+
+As with any Anki device, she should sync the Mac or iMac before and after
+studying there, which she already does.
+
+## Using a copy of her collection (no sync)
 
 1. In **Anki desktop**: *File → Export…* → format **Anki Collection Package
    (.colpkg)**, tick **Include media** → Export. This doesn't change her collection.

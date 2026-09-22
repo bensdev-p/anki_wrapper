@@ -6,6 +6,7 @@ import { APP_NAME, Logo } from './components/Logo'
 import { TopBar } from './components/TopBar'
 import { flattenDecks, useDecks } from './lib/decks'
 import { navigate, STATS_DEFAULT_DAYS, useRoute } from './lib/router'
+import { SYNCED_EVENT, useSyncLifecycle } from './lib/sync'
 import { DeckList } from './screens/DeckList'
 import { Stats } from './screens/Stats'
 import { Study } from './screens/Study'
@@ -13,7 +14,15 @@ import { Study } from './screens/Study'
 export default function App() {
   const route = useRoute()
   const [paletteOpen, setPaletteOpen] = useState(false)
-  const { decks } = useDecks()
+  const { decks, reload: reloadDecks } = useDecks()
+  useSyncLifecycle()
+
+  // After a sync, deck counts may have changed on another device.
+  useEffect(() => {
+    const onSynced = () => void reloadDecks()
+    window.addEventListener(SYNCED_EVENT, onSynced)
+    return () => window.removeEventListener(SYNCED_EVENT, onSynced)
+  }, [reloadDecks])
 
   // Cmd/Ctrl+K anywhere (the card iframe forwards it too; see Study).
   useEffect(() => {
