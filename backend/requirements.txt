@@ -1,0 +1,8 @@
+# Pinned exactly. `anki` ships manylinux_2_35 wheels for x86_64 and aarch64 (Pi 5).
+anki==26.9.2
+fastapi==0.141.1
+uvicorn==0.53.0
+
+# dev / test
+pytest==9.1.1
+httpx==0.28.1
