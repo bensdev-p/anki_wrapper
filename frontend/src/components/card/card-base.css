@@ -1,0 +1,40 @@
+/* Base reviewer styles, adapted from Anki desktop's reviewer.css
+   (qt/aqt/data/web/css/reviewer.scss, AGPL-3.0). Deck CSS layers on top. */
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 20px;
+  overflow-wrap: break-word;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: top;
+  background-attachment: fixed;
+  min-height: calc(100vh - 40px);
+}
+body.nightMode { background-color: var(--canvas); color: var(--fg); }
+img { max-width: 100%; max-height: 95vh; }
+li { text-align: start; }
+pre { text-align: left; }
+hr { background-color: #737373; margin: 1em 0; border: none; height: 1px; }
+#typeans { width: 100%; box-sizing: border-box; line-height: 1.75; font-size: inherit; padding: .35em .6em; border-radius: 8px; border: 1px solid #b9bcc4; }
+.replay-button { text-decoration: none; display: inline-flex; vertical-align: middle; margin: 3px; }
+.replay-button svg { width: 40px; height: 40px; }
+.replay-button svg circle { fill: #fff; stroke: #414141; }
+.replay-button svg path { fill: #414141; }
+.nightMode .replay-button svg circle { fill: #2a2b30; stroke: #9a9ca3; }
+.nightMode .replay-button svg path { fill: #d8d9dd; }
+.nightMode .latex { filter: invert(100%); }
+.drawing { zoom: 50%; }
+.nightMode img.drawing { filter: invert(1) hue-rotate(180deg); }
+
+@media (max-width: 600px) {
+  body { margin: 16px; min-height: calc(100vh - 32px); }
+}
+
+/* Motion: new card slides in; on flip, the answer part fades up. */
+@keyframes lacuna-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes lacuna-reveal { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.lacuna-enter { animation: lacuna-enter 220ms cubic-bezier(.2, .7, .2, 1) both; }
+.lacuna-reveal { animation: lacuna-reveal 260ms cubic-bezier(.2, .7, .2, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .lacuna-enter, .lacuna-reveal { animation: none; }
+}

@@ -1,0 +1,443 @@
+import { ArrowLeft, Check, Flag, RotateCcw, Star } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { BackendError } from '../backend/AnkiBackend'
+import { useBackend } from '../backend/context'
+import type { Rating, StudyState } from '../backend/types'
+import { Button } from '../components/Button'
+import { CardFrame, type CardKeyEvent, type CardSide } from '../components/card/CardFrame'
+import { CountPills } from '../components/CountPills'
+import { Kbd } from '../components/Kbd'
+import { useToast } from '../components/Toast'
+import { TopBar } from '../components/TopBar'
+import { useDecks } from '../lib/decks'
+import { modKey } from '../lib/platform'
+import { navigate } from '../lib/router'
+import { useTheme } from '../themes/ThemeProvider'
+
+interface Answered {
+  rating: Rating
+  ms: number
+}
+
+const BUTTONS: { rating: Rating; label: string; tone: string }[] = [
+  { rating: 1, label: 'Again', tone: 'again' },
+  { rating: 2, label: 'Hard', tone: 'hard' },
+  { rating: 3, label: 'Good', tone: 'good' },
+  { rating: 4, label: 'Easy', tone: 'easy' },
+]
+
+// Anki's flag colors (1 red, 2 orange, 3 green, 4 blue, 5 pink, 6 turquoise, 7 purple).
+const FLAG_COLORS = ['', '#e25252', '#f0a14a', '#4caf50', '#4a90e2', '#e57bc2', '#3cc7c0', '#9b6ae0']
+
+function formatDuration(ms: number): string {
+  const s = Math.round(ms / 1000)
+  const m = Math.floor(s / 60)
+  return m ? `${m}:${String(s % 60).padStart(2, '0')}` : `${s}s`
+}
+
+/** Plays card audio from the top-level page, which holds the user's gesture. */
+function useAudio() {
+  const current = useRef<HTMLAudioElement | null>(null)
+  const queue = useRef<string[]>([])
+  const stop = useCallback(() => {
+    queue.current = []
+    current.current?.pause()
+    current.current = null
+  }, [])
+  const playNext = useCallback(() => {
+    const url = queue.current.shift()
+    if (!url) return
+    const audio = new Audio(url)
+    current.current = audio
+    audio.addEventListener('ended', playNext, { once: true })
+    audio.play().catch(() => {
+      // Autoplay can be blocked until the first interaction; the play buttons still work.
+    })
+  }, [])
+  const play = useCallback(
+    (urls: string[]) => {
+      stop()
+      queue.current = [...urls]
+      playNext()
+    },
+    [playNext, stop],
+  )
+  useEffect(() => stop, [stop])
+  return { play, stop }
+}
+
+interface Props {
+  deckId: number
+  paused: boolean
+  onOpenPalette(): void
+}
+
+export function Study({ deckId, paused, onOpenPalette }: Props) {
+  const backend = useBackend()
+  const toast = useToast()
+  const { theme } = useTheme()
+  const { reload: reloadDecks } = useDecks()
+  const audio = useAudio()
+
+  const [state, setState] = useState<StudyState | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [side, setSide] = useState<CardSide>('question')
+  const [seq, setSeq] = useState(0)
+  const [answered, setAnswered] = useState<Answered[]>([])
+  const [startedAt] = useState(() => Date.now())
+  const [now, setNow] = useState(() => Date.now())
+  const busy = useRef(false)
+  const shownAt = useRef(performance.now())
+
+  const card = state?.card ?? null
+  const mediaBase = useMemo(() => backend.mediaBaseUrl(), [backend])
+
+  const showState = useCallback((next: StudyState) => {
+    setState(next)
+    setSide('question')
+    setSeq((s) => s + 1)
+    shownAt.current = performance.now()
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    backend.selectDeck(deckId).then(
+      (s) => !cancelled && showState(s),
+      (e: Error) => !cancelled && setLoadError(e.message),
+    )
+    return () => {
+      cancelled = true
+      // Leaving the screen: deck counts have changed.
+      void reloadDecks()
+    }
+  }, [backend, deckId, showState, reloadDecks])
+
+  // Clock for the session timer.
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(id)
+  }, [])
+
+  const audioUrls = useCallback(
+    (s: 'q' | 'a') =>
+      (card?.rendered.audio ?? []).filter((a) => a.side === s).map((a) => mediaBase + encodeURIComponent(a.filename)),
+    [card, mediaBase],
+  )
+
+  // Autoplay, as configured in the deck's options.
+  useEffect(() => {
+    if (!card?.rendered.autoplay) return audio.stop()
+    audio.play(audioUrls(side === 'question' ? 'q' : 'a'))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seq, side])
+
+  const flip = useCallback(() => {
+    if (!card || side !== 'question') return
+    setSide('answer')
+  }, [card, side])
+
+  const handleError = useCallback(
+    async (e: unknown) => {
+      if (e instanceof BackendError && e.kind === 'StaleCard') {
+        toast('That card was already answered. Refreshed.', 'info')
+        showState(await backend.studyState())
+      } else {
+        toast(e instanceof Error ? e.message : 'Something went wrong', 'error')
+      }
+    },
+    [backend, showState, toast],
+  )
+
+  const answer = useCallback(
+    async (rating: Rating) => {
+      if (!card || side !== 'answer' || busy.current) return
+      busy.current = true
+      const ms = performance.now() - shownAt.current
+      try {
+        const res = await backend.answer(card.card_id, rating, ms)
+        setAnswered((a) => [...a, { rating, ms }])
+        if (res.result.leech) toast('Card marked as a leech', 'info')
+        showState(res.state)
+      } catch (e) {
+        await handleError(e)
+      } finally {
+        busy.current = false
+      }
+    },
+    [backend, card, handleError, showState, side, toast],
+  )
+
+  const undo = useCallback(async () => {
+    if (!state?.can_undo || busy.current) return
+    busy.current = true
+    try {
+      const res = await backend.undo()
+      setAnswered((a) => a.slice(0, -1))
+      showState(res.state)
+      toast(`Undid ${res.result.undone.toLowerCase()}`)
+    } catch (e) {
+      await handleError(e)
+    } finally {
+      busy.current = false
+    }
+  }, [backend, handleError, showState, state, toast])
+
+  const handleKey = useCallback(
+    (e: CardKeyEvent & { repeat?: boolean }) => {
+      const mod = e.metaKey || e.ctrlKey
+      const key = e.key.toLowerCase()
+      if (mod && key === 'k') return onOpenPalette()
+      if (mod && key === 'z') return void undo()
+      if (mod || e.altKey || e.repeat) return
+      if (!card) {
+        // Finished screen: Enter goes back; Space does nothing so a fast
+        // double-press after the last card doesn't skip the summary.
+        if (e.key === 'Enter') navigate({ name: 'home' })
+        return
+      }
+      if (e.key === ' ' || e.key === 'Enter') {
+        if (side === 'question') flip()
+        else void answer(3)
+      } else if (/^[1-4]$/.test(e.key) && side === 'answer') {
+        void answer(Number(e.key) as Rating)
+      }
+    },
+    [answer, card, flip, onOpenPalette, side, undo],
+  )
+
+  useEffect(() => {
+    if (paused) return
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement
+      if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return
+      const mod = e.metaKey || e.ctrlKey
+      const handled = e.key === ' ' || e.key === 'Enter' || /^[1-4]$/.test(e.key) || (mod && e.key.toLowerCase() === 'z')
+      if (!handled) return
+      // Let Enter/Space activate a focused button on the finished screen.
+      if ((e.key === ' ' || e.key === 'Enter') && t.tagName === 'BUTTON' && !card) return
+      e.preventDefault()
+      handleKey(e)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [card, handleKey, paused])
+
+  const onCardKey = useCallback((e: CardKeyEvent) => !paused && handleKey(e), [handleKey, paused])
+
+  const onPlay = useCallback(
+    (ref: string) => {
+      const [, s, idx] = ref.split(':')
+      const hit = card?.rendered.audio.find((a) => a.side === s && a.index === Number(idx))
+      if (hit) audio.play([mediaBase + encodeURIComponent(hit.filename)])
+    },
+    [audio, card, mediaBase],
+  )
+
+  // Session numbers
+  const done = answered.length
+  const remaining = state ? state.counts.new + state.counts.learning + state.counts.review : 0
+  const progress = done + remaining === 0 ? 0 : done / (done + remaining)
+  const correct = answered.filter((a) => a.rating > 1).length
+  const avgMs = done ? answered.reduce((s, a) => s + a.ms, 0) / done : 0
+  const elapsed = now - startedAt
+
+  const deckTitle = state?.deck_name.split('::') ?? []
+
+  return (
+    <div className="study">
+      <TopBar
+        onOpenPalette={onOpenPalette}
+        left={
+          <Button variant="ghost" size="sm" onClick={() => navigate({ name: 'home' })} className="back-btn">
+            <ArrowLeft size={16} strokeWidth={2} />
+            <span className="back-btn__text">Decks</span>
+          </Button>
+        }
+        center={
+          state && (
+            <div className="study-title">
+              <span className="study-title__deck" title={state.deck_name}>
+                {deckTitle.length > 1 && <span className="study-title__parent">{deckTitle.slice(0, -1).join(' / ')} / </span>}
+                <span className="study-title__leaf">{deckTitle[deckTitle.length - 1]}</span>
+              </span>
+              <CountPills counts={state.counts} active={card?.queue ?? null} size="sm" />
+            </div>
+          )
+        }
+        right={
+          <Button
+            variant="ghost"
+            iconOnly
+            onClick={() => void undo()}
+            disabled={!state?.can_undo}
+            aria-label="Undo last answer"
+            title={`Undo (${modKey}Z)`}
+          >
+            <RotateCcw size={17} strokeWidth={1.9} />
+          </Button>
+        }
+      />
+      <div
+        className="progress"
+        role="progressbar"
+        aria-label="Session progress"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(progress * 100)}
+      >
+        <div className="progress__bar" style={{ transform: `scaleX(${progress})` }} />
+      </div>
+
+      {loadError ? (
+        <div className="study__message">
+          <p>Couldn’t open this deck: {loadError}</p>
+          <Button onClick={() => navigate({ name: 'home' })}>Back to decks</Button>
+        </div>
+      ) : state && !card ? (
+        <Finished deckName={deckTitle[deckTitle.length - 1] ?? ''} answered={answered} elapsed={elapsed} avgMs={avgMs} canUndo={state.can_undo} onUndo={() => void undo()} />
+      ) : (
+        <>
+          <div className="stage">
+            <div className={`card-surface ${state ? '' : 'is-loading'}`}>
+              <CardFrame
+                renderKey={`${seq}:${side}`}
+                rendered={card?.rendered ?? null}
+                side={side}
+                theme={theme}
+                mediaBaseUrl={mediaBase}
+                onKey={onCardKey}
+                onTap={flip}
+                onPlay={onPlay}
+              />
+              {card && (card.flag > 0 || card.marked) && (
+                <div className="card-badges">
+                  {card.flag > 0 && <Flag size={14} fill={FLAG_COLORS[card.flag]} color={FLAG_COLORS[card.flag]} aria-label="Flagged" />}
+                  {card.marked && <Star size={14} fill="currentColor" aria-label="Marked" />}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <footer className="answer-bar">
+            <div className="answer-bar__stats tabular" aria-label="Session stats">
+              <span>
+                <strong>{done}</strong> reviewed
+              </span>
+              <span>
+                <strong>{done ? Math.round((correct / done) * 100) : 0}%</strong> correct
+              </span>
+              <span>
+                <strong>{formatDuration(elapsed)}</strong>
+              </span>
+            </div>
+            <div className="answer-bar__actions">
+              {side === 'question' ? (
+                <button className="show-answer" onClick={flip} disabled={!card}>
+                  Show answer
+                  <Kbd className="show-answer__kbd">Space</Kbd>
+                </button>
+              ) : (
+                <div className="ease-buttons" role="group" aria-label="Rate your recall">
+                  {BUTTONS.map((b, i) => (
+                    <button key={b.rating} className={`ease ease--${b.tone}`} onClick={() => void answer(b.rating)}>
+                      <span className="ease__ivl tabular">{card?.button_labels[i]}</span>
+                      <span className="ease__label">{b.label}</span>
+                      <Kbd className="ease__kbd">{b.rating}</Kbd>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="answer-bar__meta">
+              {card && (
+                <span className="queue-tag" data-queue={card.queue}>
+                  {card.queue === 'new' ? 'New' : card.queue === 'learning' ? 'Learning' : 'Review'}
+                </span>
+              )}
+            </div>
+          </footer>
+        </>
+      )}
+    </div>
+  )
+}
+
+function Finished({
+  deckName,
+  answered,
+  elapsed,
+  avgMs,
+  canUndo,
+  onUndo,
+}: {
+  deckName: string
+  answered: Answered[]
+  elapsed: number
+  avgMs: number
+  canUndo: boolean
+  onUndo(): void
+}) {
+  const n = answered.length
+  const byRating = [1, 2, 3, 4].map((r) => answered.filter((a) => a.rating === r).length)
+  const correct = n ? Math.round(((n - byRating[0]) / n) * 100) : 0
+  return (
+    <div className="finished">
+      <div className="finished__icon">
+        <Check size={28} strokeWidth={2.4} />
+      </div>
+      <h1 className="finished__title">{n ? 'Nice work.' : 'Nothing due here'}</h1>
+      <p className="finished__sub">
+        {n ? `You’re done with ${deckName} for now.` : `${deckName} has no cards due right now. Check back later.`}
+      </p>
+      {n > 0 && (
+        <>
+          <dl className="finished__stats tabular">
+            <div>
+              <dt>Reviewed</dt>
+              <dd>{n}</dd>
+            </div>
+            <div>
+              <dt>Correct</dt>
+              <dd>{correct}%</dd>
+            </div>
+            <div>
+              <dt>Time</dt>
+              <dd>{formatDuration(elapsed)}</dd>
+            </div>
+            <div>
+              <dt>Per card</dt>
+              <dd>{(avgMs / 1000).toFixed(1)}s</dd>
+            </div>
+          </dl>
+          <div className="dist" aria-label="Answers by button">
+            {BUTTONS.map((b, i) =>
+              byRating[i] ? (
+                <div key={b.rating} className={`dist__seg dist__seg--${b.tone}`} style={{ flexGrow: byRating[i] }} title={`${b.label}: ${byRating[i]}`}>
+                  <span>{byRating[i]}</span>
+                </div>
+              ) : null,
+            )}
+          </div>
+          <div className="dist__legend">
+            {BUTTONS.map((b, i) => (
+              <span key={b.rating} className={`dist__key dist__key--${b.tone}`}>
+                {b.label} {byRating[i]}
+              </span>
+            ))}
+          </div>
+        </>
+      )}
+      <div className="finished__actions">
+        <Button variant="primary" size="lg" onClick={() => navigate({ name: 'home' })}>
+          Back to decks
+          <kbd className="kbd kbd--on-accent">↵</kbd>
+        </Button>
+        {canUndo && (
+          <Button variant="ghost" size="lg" onClick={onUndo}>
+            <RotateCcw size={16} /> Undo last
+          </Button>
+        )}
+      </div>
+    </div>
+  )
+}

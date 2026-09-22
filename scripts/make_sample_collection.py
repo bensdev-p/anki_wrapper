@@ -226,6 +226,7 @@ def _add_notes(col: Collection, med_cloze: dict) -> None:
 ##########################################################################
 
 DAY_MS = 86_400_000
+_EXPANDED = {"Step 1", "Step 1::Cardio", "Step 2 CK"}
 
 
 def _simulate_history(col: Collection, rng: random.Random) -> None:
@@ -270,6 +271,8 @@ def _simulate_history(col: Collection, rng: random.Random) -> None:
     for deck in col.decks.all():
         for key in ("newToday", "revToday", "lrnToday", "timeToday"):
             deck[key] = [col.sched.today, 0]
+        # New decks start collapsed; open the top levels so the tree is visible.
+        deck["collapsed"] = deck["name"] not in _EXPANDED
         col.decks.save(deck)
 
 
