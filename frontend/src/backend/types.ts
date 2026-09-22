@@ -241,3 +241,41 @@ export interface NoteForEdit {
   tags: string[]
   css: string
 }
+
+// Browser (mirror service/types.py)
+
+export interface BrowseRow {
+  card_id: number
+  note_id: number
+  text: string
+  deck: string
+  template: string
+  state: 'new' | 'learning' | 'review' | 'relearning' | 'suspended' | 'buried'
+  due: string | null
+  interval_days: number
+  ease: number | null
+  /** FSRS difficulty 0–1. */
+  difficulty: number | null
+  reviews: number
+  lapses: number
+  flag: number
+  marked: boolean
+  tags: string[]
+}
+
+export interface BrowsePage {
+  query: string
+  sort: string
+  reverse: boolean
+  total: number
+  offset: number
+  rows: BrowseRow[]
+  fsrs: boolean
+}
+
+export type BrowseSort = 'noteFld' | 'deck' | 'cardDue' | 'cardIvl' | 'cardEase' | 'difficulty' | 'cardReps' | 'cardLapses'
+
+/** Explicit cards, or every card matching a search. */
+export type BrowseSelection = { card_ids: number[] } | { query: string; sort: BrowseSort; reverse: boolean }
+
+export type BrowseActionKind = 'suspend' | 'unsuspend' | 'flag' | 'add_tags' | 'remove_tags' | 'set_due'

@@ -1,4 +1,4 @@
-import { BarChart3, Home, Play } from 'lucide-react'
+import { BarChart3, Home, Play, Search } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { AppNav } from './components/AppNav'
 import { CommandPalette, type PaletteAction } from './components/CommandPalette'
@@ -7,6 +7,7 @@ import { TopBar } from './components/TopBar'
 import { flattenDecks, useDecks } from './lib/decks'
 import { navigate, STATS_DEFAULT_DAYS, useRoute } from './lib/router'
 import { SYNCED_EVENT, useSyncLifecycle } from './lib/sync'
+import { Browser } from './screens/Browser'
 import { DeckList } from './screens/DeckList'
 import { Stats } from './screens/Stats'
 import { Study } from './screens/Study'
@@ -50,6 +51,9 @@ export default function App() {
         run: () => navigate({ name: 'stats', deckId, days: STATS_DEFAULT_DAYS }),
       })
     }
+    if (route.name !== 'browse') {
+      list.push({ id: 'browse', label: 'Browse cards', icon: Search, run: () => navigate({ name: 'browse', q: '' }) })
+    }
     if (route.name === 'home' && decks) {
       // Suggest the deck with the most due cards.
       const best = flattenDecks(decks)
@@ -86,7 +90,14 @@ export default function App() {
             }
             center={<AppNav route={route} />}
           />
-          {route.name === 'stats' ? <Stats deckId={route.deckId} days={route.days} /> : <DeckList />}
+          {route.name === 'stats' ? (
+            <Stats deckId={route.deckId} days={route.days} />
+          ) : route.name === 'browse' ? (
+            <Browser initialQuery={route.q} />
+          ) : (
+            <DeckList />
+          )}
+          <AppNav route={route} variant="tabs" />
         </div>
       )}
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} actions={actions} />

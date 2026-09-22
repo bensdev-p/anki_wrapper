@@ -80,7 +80,7 @@
     runScripts(qa)
       .then(function () { return runHooks(window.onUpdateHook) })
       .then(function () {
-        if (answer) {
+        if (answer && msg.scrollToAnswer !== false) {
           var top = answer.getBoundingClientRect().top
           if (top > window.innerHeight * 0.6) answer.scrollIntoView({ block: 'start', behavior: 'smooth' })
         }

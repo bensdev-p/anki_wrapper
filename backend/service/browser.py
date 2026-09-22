@@ -50,7 +50,7 @@ def search_ids(col: Collection, query: str, sort: str = "noteFld", reverse: bool
     try:
         return list(col.find_cards(query or "deck:*", order=column, reverse=reverse))  # type: ignore[arg-type]
     except Exception as err:  # Anki's SearchError carries a readable message
-        raise InvalidSearch(str(err)) from err
+        raise InvalidSearch(re.sub("[\u2066-\u2069]", "", str(err))) from err
 
 
 def rows(col: Collection, card_ids: list[int]) -> list[BrowseRow]:

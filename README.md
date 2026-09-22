@@ -45,6 +45,25 @@ The note editor saves only the fields she changed, never touches note types
 (which would force a one-way sync), and refuses edits that would blank a card
 (an empty first field, or removing a cloze a card depends on).
 
+## Card browser
+
+**Browse** tab (or `⌘K` → "Browse cards"):
+- Search with Anki's own syntax (`tag:#AK_Step1_v12::#B&B`, `prop:ivl>30`,
+  `deck:"Step 1::Cardio" is:due`…), plus quick filters (Due, New, Learning,
+  Suspended, Flagged, Marked, Leeches) and a deck picker.
+- Sort by clicking a column (card, deck, due, interval, difficulty/ease, reviews,
+  lapses). Anki does the sorting, exactly as in the desktop browser.
+- Scrolling stays smooth at 100k results: only the visible rows are drawn and
+  fetched. At 100k cards, search + sort ≈ 45 ms and a page of rows ≈ 3 ms (x86).
+- Select with click, ⌘/Ctrl-click and Shift-click, or **Select all** (`⌘A`). Bulk
+  actions: suspend, unsuspend, flag, add/remove tags, set due date. Changes to
+  more than 50 cards ask first, and everything can be undone with `⌘Z`.
+- A preview pane shows the card with its note type's styling, with Edit and Info.
+- On the phone: a list with a **Select** mode, and tap to preview.
+
+Her saved desktop browser column setup is never changed: it syncs, so changing it
+would rearrange the browser on her Mac.
+
 ## Milestone 2: statistics
 
 - **Stats** tab (or `⌘K` → "Open statistics"), filtered by deck and period (1 month /

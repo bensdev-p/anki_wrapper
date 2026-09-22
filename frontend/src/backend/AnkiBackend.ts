@@ -1,5 +1,9 @@
 import type {
   AnswerResponse,
+  BrowseActionKind,
+  BrowsePage,
+  BrowseSelection,
+  BrowseSort,
   CardInfo,
   NoteForEdit,
   RenderedCard,
@@ -43,6 +47,10 @@ export interface AnkiBackend {
   getNote(noteId: number): Promise<NoteForEdit>
   /** Save changed fields only (by name), and optionally tags. */
   updateNote(noteId: number, fields: Record<string, string>, tags?: string[]): Promise<NoteForEdit>
+  /** One page of a browser search (Anki search syntax, sorted by Anki). */
+  browse(query: string, sort: BrowseSort, reverse: boolean, offset: number, limit: number): Promise<BrowsePage>
+  /** Bulk action; resolves with the number of cards/notes changed. Undoable. */
+  browseAction(selection: BrowseSelection, action: BrowseActionKind, value?: string | number): Promise<number>
   search(query: string, limit?: number): Promise<SearchResult>
   /** Stats for a deck (with subdecks) or, with null, the whole collection. */
   stats(deckId: number | null, days: number): Promise<StatsSummary>

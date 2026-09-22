@@ -1,6 +1,10 @@
 import { BackendError, type AnkiBackend } from './AnkiBackend'
 import type {
   AnswerResponse,
+  BrowseActionKind,
+  BrowsePage,
+  BrowseSelection,
+  BrowseSort,
   CardInfo,
   NoteForEdit,
   RenderedCard,
@@ -73,6 +77,17 @@ export class HttpBackend implements AnkiBackend {
   getNote = (noteId: number) => this.request<NoteForEdit>(`/notes/${noteId}`)
   updateNote = (noteId: number, fields: Record<string, string>, tags?: string[]) =>
     this.request<NoteForEdit>(`/notes/${noteId}`, { method: 'PUT', body: JSON.stringify({ fields, tags }) })
+  browse = (query: string, sort: BrowseSort, reverse: boolean, offset: number, limit: number) =>
+    this.request<BrowsePage>(
+      `/browse?${new URLSearchParams({ q: query, sort, reverse: String(reverse), offset: String(offset), limit: String(limit) })}`,
+    )
+  browseAction = async (selection: BrowseSelection, action: BrowseActionKind, value?: string | number) =>
+    (
+      await this.request<{ count: number }>('/browse/action', {
+        method: 'POST',
+        body: JSON.stringify({ selection, action, value }),
+      })
+    ).count
   search = (query: string, limit = 50) =>
     this.request<SearchResult>(
       `/search?${new URLSearchParams({ q: query, limit: String(limit) })}`,

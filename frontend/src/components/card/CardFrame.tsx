@@ -22,6 +22,8 @@ interface Props {
   side: CardSide
   theme: Theme
   mediaBaseUrl: string
+  /** Scroll a long answer into view on flip (the review screen). Off for previews. */
+  scrollToAnswer?: boolean
   /** Typed-answer comparison HTML for the answer side's #typeans-result slot. */
   typeAnswerHtml?: string | null
   onKey(e: CardKeyEvent): void
@@ -59,7 +61,7 @@ function buildSrcDoc(mediaBaseUrl: string): string {
  * only: opaque origin, so deck JS can't reach the app or its storage).
  * One document persists for the whole session, like Anki's reviewer webview.
  */
-export function CardFrame({ renderKey, rendered, side, theme, mediaBaseUrl, typeAnswerHtml, onKey, onTap, onPlay, onTyped }: Props) {
+export function CardFrame({ renderKey, rendered, side, theme, mediaBaseUrl, scrollToAnswer = true, typeAnswerHtml, onKey, onTap, onPlay, onTyped }: Props) {
   const frame = useRef<HTMLIFrameElement>(null)
   const ready = useRef(false)
   const pending = useRef<object[]>([])
@@ -120,6 +122,7 @@ export function CardFrame({ renderKey, rendered, side, theme, mediaBaseUrl, type
       bodyClass: rendered.body_class,
       animate: true,
       touch: isTouch,
+      scrollToAnswer,
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [renderKey, rendered, side])
