@@ -16,7 +16,8 @@ from anki.sound import AV_REF_RE, SoundOrVideoTag
 
 from .types import AudioRef, RenderedCard
 
-_TYPE_ANSWER_RE = re.compile(r"\[\[type:[^\]]+\]\]")
+# aqt.reviewer.Reviewer.typeAnsPat
+_TYPE_ANSWER_RE = re.compile(r"\[\[type:(.+?)\]\]")
 
 # Same markup as aqt.sound.av_refs_to_play_icons, so deck CSS targeting
 # .replay-button / .soundLink / .playImage still applies. Clicks are handled by
@@ -29,8 +30,9 @@ def render_card(col: Collection, card: Card) -> RenderedCard:
     audio = _audio_refs("q", out.question_av_tags) + _audio_refs(
         "a", out.answer_av_tags
     )
-    question = _prepare(col, out.question_text, side="q")
-    answer = _prepare(col, out.answer_text, side="a")
+    field = _type_answer_field(card, out.question_text)
+    question = _prepare(col, out.question_text, side="q", field=field)
+    answer = _prepare(col, out.answer_text, side="a", field=field)
     conf = col.decks.config_dict_for_deck_id(card.current_deck_id())
     return RenderedCard(
         question_html=question,
@@ -41,20 +43,61 @@ def render_card(col: Collection, card: Card) -> RenderedCard:
         body_class=f"card card{card.ord + 1}",
         audio=audio,
         autoplay=bool(conf.get("autoplay", True)),
+        type_answer=field is not None,
     )
 
 
-def _prepare(col: Collection, text: str, side: str) -> str:
+def _prepare(col: Collection, text: str, side: str, field: _TypeField | None) -> str:
     text = col.media.escape_media_filenames(text)
     text = AV_REF_RE.sub(lambda m: _PLAY_BUTTON.format(ref=html.escape(m.group(1))), text)
+    if field is None:
+        return _TYPE_ANSWER_RE.sub("", text)
+    style = f"font-family: '{html.escape(field.font)}'; font-size: {int(field.size)}px;"
     if side == "q":
-        text = _TYPE_ANSWER_RE.sub(
-            '<input id="typeans" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Type answer">',
-            text,
+        box = (
+            f'<center><input id="typeans" type="text" style="{style}" autocomplete="off" '
+            'autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Type your answer"></center>'
         )
     else:
-        text = _TYPE_ANSWER_RE.sub("", text)
-    return text
+        # Filled in with col.compare_answer() output once the typed text is known.
+        box = f'<div id="typeans-result" style="{style}"></div>'
+    return _TYPE_ANSWER_RE.sub(lambda _: box, text, count=1)
+
+
+class _TypeField:
+    def __init__(self, name: str, cloze_ord: int | None, combining: bool, font: str, size: int) -> None:
+        self.name, self.cloze_ord, self.combining, self.font, self.size = name, cloze_ord, combining, font, size
+
+
+def _type_answer_field(card: Card, question_text: str) -> _TypeField | None:
+    """Mirror of aqt.reviewer.Reviewer.typeAnsQuestionFilter's field lookup."""
+    m = _TYPE_ANSWER_RE.search(question_text)
+    if not m:
+        return None
+    name = m.group(1)
+    cloze_ord = None
+    combining = True
+    if name.startswith("cloze:"):
+        cloze_ord = card.ord + 1
+        name = name.split(":", 1)[1]
+    if name.startswith("nc:"):
+        combining = False
+        name = name.split(":", 1)[1]
+    for f in card.note_type()["flds"]:
+        if f["name"] == name:
+            return _TypeField(name, cloze_ord, combining, f.get("font", "Arial"), f.get("size", 20))
+    return None
+
+
+def compare_typed_answer(col: Collection, card: Card, typed: str) -> str:
+    """HTML diff of what she typed vs the expected answer (col.compare_answer, as aqt)."""
+    field = _type_answer_field(card, card.render_output().question_text)
+    if field is None:
+        return ""
+    expected = card.note()[field.name]
+    if field.cloze_ord:
+        expected = col.extract_cloze_for_typing(expected, field.cloze_ord)
+    return col.compare_answer(expected, typed, field.combining)
 
 
 def _audio_refs(side: str, tags: list) -> list[AudioRef]:

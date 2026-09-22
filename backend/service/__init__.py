@@ -9,7 +9,20 @@ desktop add-on it would be `mw.col` on the main thread.
 from .decks import deck_name, deck_tree
 from .errors import NotFound, NothingToUndo, ServiceError, StaleCard
 from .render import render_card
-from .review import answer_card, select_deck, study_state, undo
+from .notes import note_for_edit, update_note
+from .review import (
+    answer_card,
+    bury,
+    card_info,
+    compare_answer,
+    rerender,
+    select_deck,
+    set_flag,
+    study_state,
+    suspend,
+    toggle_mark,
+    undo,
+)
 from .search import search_cards
 from .stats import stats
 from . import sync
@@ -20,6 +33,15 @@ __all__ = [
     "ServiceError",
     "StaleCard",
     "answer_card",
+    "bury",
+    "card_info",
+    "compare_answer",
+    "note_for_edit",
+    "rerender",
+    "set_flag",
+    "suspend",
+    "toggle_mark",
+    "update_note",
     "deck_name",
     "deck_tree",
     "render_card",

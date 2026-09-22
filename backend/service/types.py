@@ -52,6 +52,8 @@ class RenderedCard:
     """Anki's reviewer body classes, without the night-mode ones (see render.py)."""
     audio: list[AudioRef]
     autoplay: bool
+    type_answer: bool
+    """The card has a [[type:...]] box; the answer side has a slot for the comparison."""
 
 
 @dataclass
@@ -95,6 +97,7 @@ class AnswerResult:
 class UndoResult:
     undone: str
     """Localized name of the undone action, e.g. "Answer Card"."""
+    was_answer: bool
 
 
 @dataclass
@@ -223,3 +226,68 @@ class MediaSyncState:
     active: bool
     summary: str
     error: str | None
+
+
+# Card actions, card info, note editing
+##########################################################################
+
+
+@dataclass
+class RevlogEntry:
+    time: int
+    """Unix seconds."""
+    kind: Literal["learning", "review", "relearning", "filtered", "manual", "rescheduled"]
+    button: int
+    """1-4 (0 for manual/rescheduled entries)."""
+    interval_secs: int
+    """Interval after this review, in seconds (negative Anki values are converted)."""
+    ease: int
+    """Ease factor in permille (0 with FSRS)."""
+    taken_secs: float
+    stability_days: float | None
+    difficulty: float | None
+
+
+@dataclass
+class CardInfo:
+    card_id: int
+    note_id: int
+    deck: str
+    notetype: str
+    card_type: str
+    added: int
+    first_review: int | None
+    latest_review: int | None
+    due: str | None
+    """Human-readable due date, or None for new/suspended cards."""
+    interval_days: int
+    ease: int | None
+    reviews: int
+    lapses: int
+    average_secs: float
+    total_secs: float
+    fsrs: bool
+    stability_days: float | None
+    difficulty: float | None
+    """FSRS difficulty, 1 (easy) to 10 (hard)."""
+    retrievability: float | None
+    desired_retention: float | None
+    preset: str
+    tags: list[str]
+    revlog: list[RevlogEntry]
+
+
+@dataclass
+class NoteField:
+    name: str
+    html: str
+
+
+@dataclass
+class NoteForEdit:
+    note_id: int
+    notetype: str
+    fields: list[NoteField]
+    tags: list[str]
+    css: str
+    """The note type's CSS, so the editor can show fields as they look on cards."""

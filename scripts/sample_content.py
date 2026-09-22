@@ -63,6 +63,13 @@ BASIC = [
     ("Step 2 CK::Pediatrics", "Age by which a child should walk independently?", "≈ 12–15 months (evaluate if not by 18 months)"),
 ]
 
+# (deck, front, back) for Anki's stock "Basic (type in the answer)"
+TYPED = [
+    ("Step 1::Cardio::Pharm", "Antidote for acetaminophen overdose?", "N-acetylcysteine"),
+    ("Step 1::Micro::Bacteria", "Drug of choice for syphilis?", "Penicillin G"),
+    ("Step 1::Biochem::Metabolism", "Vitamin deficiency causing pellagra?", "Niacin"),
+]
+
 # (deck, text, extra) for the custom "Med Cloze (sample)" notetype
 CLOZE = [
     ("Step 1::Cardio::Pharm",

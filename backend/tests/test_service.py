@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 import pytest
 from anki.collection import Collection
 
@@ -221,3 +223,114 @@ def test_stats_deck_scope_and_answer_updates_today(col: Collection) -> None:
 def test_stats_unknown_deck(col: Collection) -> None:
     with pytest.raises(service.NotFound):
         service.stats(col, 999_999)
+
+
+# Card actions, card info, notes
+##########################################################################
+
+
+def _front(col: Collection):
+    state = service.select_deck(col, _deck(col, "Step 1"))
+    assert state.card is not None
+    return state
+
+
+def test_flag_toggles_and_is_undoable(col: Collection) -> None:
+    card = _front(col).card
+    assert service.set_flag(col, card.card_id, 1) == 1
+    assert col.get_card(card.card_id).user_flag() == 1
+    assert service.set_flag(col, card.card_id, 1) == 0  # same flag again clears it
+    assert service.set_flag(col, card.card_id, 4) == 4
+    assert service.study_state(col).can_undo
+    result = service.undo(col)
+    assert not result.was_answer
+    assert col.get_card(card.card_id).user_flag() == 0
+
+
+def test_mark_toggles_tag(col: Collection) -> None:
+    card = _front(col).card
+    assert service.toggle_mark(col, card.note_id) is True
+    assert col.get_note(card.note_id).has_tag("marked")
+    assert service.toggle_mark(col, card.note_id) is False
+    assert not col.get_note(card.note_id).has_tag("marked")
+
+
+@pytest.mark.parametrize("action", [service.suspend, service.bury])
+def test_suspend_and_bury_remove_card_from_queue_and_undo(col: Collection, action) -> None:
+    state = _front(col)
+    cid = state.card.card_id
+    after = action(col, cid)
+    assert after.card is None or after.card.card_id != cid
+    assert service.undo(col).was_answer is False
+    assert service.study_state(col).card.card_id == cid
+
+
+def test_bury_note_buries_siblings(col: Collection) -> None:
+    # a cloze note with two cards
+    nid = next(n for n in col.find_notes('"note:Med Cloze (sample)"') if len(col.get_note(n).card_ids()) > 1)
+    cids = col.get_note(nid).card_ids()
+    service.bury(col, cids[0], whole_note=True)
+    assert all(col.get_card(c).queue < 0 for c in cids)
+
+
+def test_answer_undo_reports_was_answer(col: Collection) -> None:
+    card = _front(col).card
+    service.answer_card(col, card.card_id, 3, 1000)
+    assert service.undo(col).was_answer is True
+
+
+def test_card_info(col: Collection) -> None:
+    reviewed = col.find_cards("-is:new")[0]
+    info = service.card_info(col, reviewed)
+    assert info.reviews >= 1 and info.revlog
+    assert info.fsrs and info.stability_days and info.difficulty
+    assert info.revlog[0].kind in ("learning", "review", "relearning", "filtered", "manual", "rescheduled")
+    new = service.card_info(col, col.find_cards("is:new")[0])
+    assert new.reviews == 0 and new.due and new.due.startswith("New")
+
+
+def test_type_answer_render_and_compare(col: Collection) -> None:
+    cid = col.find_cards('"note:Basic (type in the answer)" acetaminophen')[0]
+    rendered = service.render_card(col, col.get_card(cid))
+    assert rendered.type_answer
+    assert 'id="typeans"' in rendered.question_html
+    assert 'id="typeans-result"' in rendered.answer_html
+    assert "[[type:" not in rendered.question_html + rendered.answer_html
+    good = service.compare_answer(col, cid, "N-acetylcysteine")
+    bad = service.compare_answer(col, cid, "naloxone")
+    assert "typeGood" in good and "typeBad" not in good
+    assert "typeBad" in bad or "typeMissed" in bad
+
+
+def test_update_note_writes_only_changed_fields_and_undoes(col: Collection) -> None:
+    card = _front(col).card
+    before = service.note_for_edit(col, card.note_id)
+    first = before.fields[0]
+    edited = service.update_note(col, card.note_id, {first.name: first.html + " <b>edited</b>"}, tags=[*before.tags, "lacuna"])
+    assert edited.fields[0].html.endswith("<b>edited</b>")
+    assert edited.fields[1:] == before.fields[1:]
+    assert "lacuna" in edited.tags
+    assert "edited" in service.rerender(col, card.card_id).question_html + service.rerender(col, card.card_id).answer_html
+    assert service.study_state(col).undo_label == "Update Note"
+    service.undo(col)
+    assert service.note_for_edit(col, card.note_id).fields[0].html == first.html
+    with pytest.raises(ValueError):
+        service.update_note(col, card.note_id, {"Nope": "x"})
+
+
+def test_note_edit_never_changes_schema(col: Collection) -> None:
+    card = _front(col).card
+    note = service.note_for_edit(col, card.note_id)
+    scm = col.db.scalar("select scm from col")
+    service.update_note(col, card.note_id, {note.fields[0].name: note.fields[0].html + " changed"})
+    assert col.db.scalar("select scm from col") == scm
+
+
+def test_update_note_refuses_blanking_cards(col: Collection) -> None:
+    nid = next(n for n in col.find_notes('"note:Med Cloze (sample)"') if len(col.get_note(n).card_ids()) > 1)
+    text = service.note_for_edit(col, nid).fields[0].html
+    with pytest.raises(ValueError, match="c2"):
+        service.update_note(col, nid, {"Text": re.sub(r"\{\{c2::(.*?)\}\}", r"\1", text)})
+    with pytest.raises(ValueError):
+        service.update_note(col, nid, {"Text": "no clozes at all"})
+    assert service.note_for_edit(col, nid).fields[0].html == text  # unchanged

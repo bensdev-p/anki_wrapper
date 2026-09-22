@@ -213,6 +213,12 @@ def _add_notes(col: Collection, med_cloze: dict) -> None:
         note["Front"], note["Back"] = front, back
         note.tags = [deck.split("::")[1].lower(), "sample"]
         col.add_note(note, did)  # type: ignore[arg-type]
+    typed = col.models.by_name("Basic (type in the answer)")
+    for deck, front, back in content.TYPED:
+        note = col.new_note(typed)  # type: ignore[arg-type]
+        note["Front"], note["Back"] = front, back
+        note.tags = [deck.split("::")[1].lower(), "sample", "typed"]
+        col.add_note(note, col.decks.id(deck))  # type: ignore[arg-type]
     for i, (deck, text, extra) in enumerate(content.CLOZE):
         did = col.decks.id(deck)
         note = col.new_note(med_cloze)  # type: ignore[arg-type]

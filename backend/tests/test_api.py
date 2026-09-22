@@ -91,3 +91,28 @@ def test_stats_cache_invalidates_after_answer(client: TestClient) -> None:
     after = client.get("/api/stats", params={"days": 30}).json()
     assert after["today"]["answered"] == before["today"]["answered"] + 1
     assert client.get("/api/stats", params={"days": 9999}).status_code == 422
+
+
+def test_card_actions_and_note_edit(client: TestClient) -> None:
+    did = _deck_id(client, "Step 1")
+    card = client.post(f"/api/study/deck/{did}").json()["card"]
+    cid, nid = card["card_id"], card["note_id"]
+
+    assert client.post(f"/api/cards/{cid}/flag", json={"flag": 2}).json() == {"flag": 2}
+    assert client.post(f"/api/cards/{cid}/flag", json={"flag": 9}).status_code == 422
+    assert client.post(f"/api/notes/{nid}/mark").json() == {"marked": True}
+    assert client.get(f"/api/cards/{cid}/info").json()["card_id"] == cid
+
+    note = client.get(f"/api/notes/{nid}").json()
+    first = note["fields"][0]
+    updated = client.put(f"/api/notes/{nid}", json={"fields": {first["name"]: first["html"] + " (edited)"}}).json()
+    assert updated["fields"][0]["html"].endswith(" (edited)")
+    rendered = client.get(f"/api/cards/{cid}/render").json()
+    assert "(edited)" in rendered["question_html"] + rendered["answer_html"]
+    assert client.put(f"/api/notes/{nid}", json={"fields": {first["name"]: ""}}).status_code == 422
+
+    state = client.post("/api/study/bury", json={"card_id": cid}).json()
+    assert state["card"] is None or state["card"]["card_id"] != cid
+    undone = client.post("/api/study/undo").json()
+    assert undone["result"]["was_answer"] is False
+    assert undone["state"]["card"]["card_id"] == cid

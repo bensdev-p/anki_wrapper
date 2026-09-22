@@ -22,6 +22,9 @@ from service.stats import MAX_DAYS as STATS_MAX_DAYS
 from safety import DEV_COLLECTION, REPO_ROOT, resolve_collection_path
 from service.types import (
     AnswerResult,
+    CardInfo,
+    NoteForEdit,
+    RenderedCard,
     DeckNode,
     SearchResult,
     StatsSummary,
@@ -145,6 +148,91 @@ async def undo(request: Request) -> UndoResponse:
         return UndoResponse(result=result, state=service.study_state(col))
 
     return await _host(request).run(op)
+
+
+# Card actions (flag, mark, suspend, bury) and card details
+##########################################################################
+
+
+class FlagRequest(BaseModel):
+    flag: int = Field(ge=0, le=7)
+
+
+@dataclass
+class FlagResponse:
+    flag: int
+
+
+@app.post("/api/cards/{card_id}/flag")
+async def flag_card(request: Request, card_id: int, body: FlagRequest) -> FlagResponse:
+    """Set a flag; setting the card's current flag again clears it (as desktop)."""
+    return FlagResponse(await _host(request).run(lambda col: service.set_flag(col, card_id, body.flag)))
+
+
+@dataclass
+class MarkResponse:
+    marked: bool
+
+
+@app.post("/api/notes/{note_id}/mark")
+async def mark_note(request: Request, note_id: int) -> MarkResponse:
+    return MarkResponse(await _host(request).run(lambda col: service.toggle_mark(col, note_id)))
+
+
+class CardActionRequest(BaseModel):
+    card_id: int
+    whole_note: bool = False
+
+
+@app.post("/api/study/suspend")
+async def suspend(request: Request, body: CardActionRequest) -> StudyState:
+    return await _host(request).run(lambda col: service.suspend(col, body.card_id, body.whole_note))
+
+
+@app.post("/api/study/bury")
+async def bury(request: Request, body: CardActionRequest) -> StudyState:
+    return await _host(request).run(lambda col: service.bury(col, body.card_id, body.whole_note))
+
+
+class CompareRequest(BaseModel):
+    typed: str = Field(max_length=10_000)
+
+
+@dataclass
+class CompareResponse:
+    html: str
+
+
+@app.post("/api/cards/{card_id}/compare")
+async def compare(request: Request, card_id: int, body: CompareRequest) -> CompareResponse:
+    """Typed-answer comparison HTML (Anki's compare_answer)."""
+    return CompareResponse(await _host(request).run(lambda col: service.compare_answer(col, card_id, body.typed)))
+
+
+@app.get("/api/cards/{card_id}/info")
+async def card_info(request: Request, card_id: int) -> CardInfo:
+    return await _host(request).run(lambda col: service.card_info(col, card_id))
+
+
+@app.get("/api/cards/{card_id}/render")
+async def render_card(request: Request, card_id: int) -> RenderedCard:
+    return await _host(request).run(lambda col: service.rerender(col, card_id))
+
+
+@app.get("/api/notes/{note_id}")
+async def get_note(request: Request, note_id: int) -> NoteForEdit:
+    return await _host(request).run(lambda col: service.note_for_edit(col, note_id))
+
+
+class NoteUpdate(BaseModel):
+    fields: dict[str, str] = Field(default_factory=dict)
+    """Only the fields that changed."""
+    tags: list[str] | None = None
+
+
+@app.put("/api/notes/{note_id}")
+async def put_note(request: Request, note_id: int, body: NoteUpdate) -> NoteForEdit:
+    return await _host(request).run(lambda col: service.update_note(col, note_id, body.fields, body.tags))
 
 
 @app.get("/api/search")

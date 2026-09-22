@@ -63,6 +63,14 @@ def _seed_server(col_path: Path, endpoint: str) -> SyncCredentials:
     return creds
 
 
+def _card_count(col_path: Path) -> int:
+    col = Collection(str(col_path))
+    try:
+        return col.card_count()
+    finally:
+        col.close()
+
+
 def _wait_media(col: Collection) -> None:
     time.sleep(0.3)  # let the backend start the background media sync
     deadline = time.time() + 15
@@ -76,6 +84,7 @@ def _new_device(root: Path) -> Collection:
 
 
 def test_new_device_downloads_then_syncs_both_ways(col_path: Path, server: str) -> None:
+    expected = _card_count(col_path)
     creds = _seed_server(col_path, server)
     device = _new_device(col_path.parent.parent / uuid.uuid4().hex)
     backups = Path(device.path).parent / "backups"
@@ -85,7 +94,7 @@ def test_new_device_downloads_then_syncs_both_ways(col_path: Path, server: str) 
     assert device.card_count() == 0  # nothing happens without an explicit download
 
     service.sync.full_download(device, creds, first.server_media_usn, backups)
-    assert device.card_count() == 87
+    assert device.card_count() == expected
     assert list(backups.glob("*.colpkg"))  # backed up before replacing
     _wait_media(device)
     assert (Path(device.media.dir()) / "ecg_afib.svg").exists()
@@ -163,6 +172,7 @@ def test_sync_module_has_no_upload_path() -> None:
 @pytest.fixture
 def synced_app(col_path: Path, server: str, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
     """The app opened on a data/synced-style collection that's signed in to the local server."""
+    client_expected_cards = _card_count(col_path)
     creds = _seed_server(col_path, server)
     root = col_path.parent.parent / uuid.uuid4().hex
     device = _new_device(root)
@@ -175,6 +185,7 @@ def synced_app(col_path: Path, server: str, monkeypatch: pytest.MonkeyPatch) -> 
     from api.main import app
 
     with TestClient(app) as client:
+        client.expected_cards = client_expected_cards  # type: ignore[attr-defined]
         yield client
 
 
@@ -200,7 +211,7 @@ def test_api_first_sync_then_download(synced_app: TestClient) -> None:
     client.post("/api/sync/full-download")
     status = _settle(client)
     assert status["needs"] is None and status["last_synced_at"]
-    assert client.get("/api/info").json()["card_count"] == 87
+    assert client.get("/api/info").json()["card_count"] == client.expected_cards  # type: ignore[attr-defined]
     assert client.get("/api/decks").json()  # collection usable after reopen
 
 
