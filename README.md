@@ -21,6 +21,13 @@ The goal is Quizlet-level polish with Anki-level power.
 - Card rendering: card HTML and the note type's CSS load in a sandboxed iframe, so
   deck JavaScript (hint buttons etc.) runs. Media is served from the collection's media
   folder, and dark themes apply Anki's `nightMode night_mode` body classes.
+- AnKing resources: First Aid, Sketchy, Pathoma and other hint buttons open as they do
+  in AnkiMobile. The iframe acts like AnkiMobile (`html.mobile`), so the tag-based
+  "First Aid Links" / "Boards and Beyond Links" buttons show too. Links open in a new
+  tab. Deck scripts get working `sessionStorage`/`localStorage` shims (for
+  anki-persistence), and `pycmd("ans")` / `pycmd("ease3")` work. When a resource
+  image isn't on this device yet, a notice says so (usually because media is still
+  syncing).
 - Themes: Light, Dark, Parchment (warm sepia), Dusk (warm dark) and High Contrast.
   The default follows the system light/dark setting, and your choice is remembered.
 - Command palette: `⌘K` / `Ctrl+K` to jump to a deck, switch theme or start studying.
@@ -194,8 +201,10 @@ the Pi is back. It's never counted twice, because the server rejects a duplicate
 
 - nested decks (`Step 1::Cardio::Pharm`, `Step 1::Renal::Physiology`, `Step 2 CK::Pediatrics`, …)
 - stock **Basic** notes and a custom **cloze** note type ("Med Cloze (sample)")
-  with its own CSS, night-mode rules and hint-button JavaScript
-- media: SVG figures (ECG strip, nephron, gram stain) and a WAV heart-sound clip
+  with its own CSS, night-mode rules and hint-button JavaScript, including
+  First Aid / Sketchy resource fields on the Cardio Pharm and Bacteria cards
+- media: SVG figures (ECG strip, nephron, gram stain, stand-in FA/Sketchy pages) and
+  a WAV heart-sound clip
 - **FSRS** enabled, plus simulated review history, so today's **new, learning and
   review counts are all non-zero**
 
@@ -316,6 +325,7 @@ worker, and every collection call goes through a single dedicated thread, which
 serializes them. Media files are served without touching the collection.
 
 **Card isolation:** cards render in `<iframe sandbox="allow-scripts">` with a CSP
-that blocks network access. Deck JavaScript runs, but it can't reach the app, its
+that blocks network access (the one exception is `connect-src https://en.wikipedia.org`,
+used by the AnKing word-lookup popups). Deck JavaScript runs, but it can't reach the app, its
 storage or the API. Audio plays from the parent page, because that's where the
 user's tap happened, which Safari's autoplay rules require.

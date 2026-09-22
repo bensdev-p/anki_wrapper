@@ -57,6 +57,13 @@ than any feature.**
   no `allow-same-origin`, CSP `connect-src 'none'`). The iframe runtime mirrors
   Anki's reviewer (persistent document, scripts re-run, `onUpdateHook`/`onShownHook`,
   `nightMode night_mode` classes in dark themes). Keep it compatible with deck JS.
+  AnKing templates rely on AnkiMobile behavior, which it emulates:
+  - `html.mobile` shows the tag-based First Aid / B&B link buttons.
+  - In-memory `sessionStorage`, plus a `localStorage` that the parent persists,
+    for anki-persistence.
+  - `pycmd('ans'|'easeN')`.
+  - http(s) links open in a new tab via the parent.
+  - The only network exception is `connect-src https://en.wikipedia.org`.
 
 ## Frontend conventions
 

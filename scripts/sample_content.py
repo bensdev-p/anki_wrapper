@@ -165,17 +165,32 @@ MED_CLOZE_FRONT = """<div class="deck-crumbs">{{Deck}}</div>
 MED_CLOZE_BACK = """<div class="deck-crumbs">{{Deck}}</div>
 <div class="text">{{cloze:Text}}</div>
 {{#Extra}}<div class="extra">{{Extra}}</div>{{/Extra}}
-{{#Source}}<div class="hint-row"><button class="hint-btn" type="button" data-target="source-a">Source</button></div>
-<div id="source-a" class="hint" hidden>{{Source}}</div>{{/Source}}
+<div class="hint-row">
+{{#First Aid}}<button class="hint-btn" type="button" data-target="fa-a">First Aid</button>{{/First Aid}}
+{{#Sketchy}}<button class="hint-btn" type="button" data-target="sketchy-a">Sketchy</button>{{/Sketchy}}
+{{#Source}}<button class="hint-btn" type="button" data-target="source-a">Source</button>{{/Source}}
+</div>
+{{#First Aid}}<div id="fa-a" class="hint resource" hidden>{{edit:First Aid}}</div>{{/First Aid}}
+{{#Sketchy}}<div id="sketchy-a" class="hint resource" hidden>{{edit:Sketchy}}</div>{{/Sketchy}}
+{{#Source}}<div id="source-a" class="hint" hidden>{{Source}}</div>{{/Source}}
 <script>
-  document.querySelectorAll('.hint-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () {
+  // Like AnKing's templates: resource fields behind hint buttons (with the
+  // `edit:` filter from a desktop add-on, which Anki passes through), and
+  // state kept from front to back in sessionStorage (anki-persistence style).
+  (function () {
+    var opened = JSON.parse(sessionStorage.getItem('sample-open') || '[]');
+    document.querySelectorAll('.hint-btn').forEach(function (btn) {
       var el = document.getElementById(btn.dataset.target);
       if (!el) return;
-      el.hidden = !el.hidden;
-      btn.classList.toggle('open', !el.hidden);
+      var set = function (open) { el.hidden = !open; btn.classList.toggle('open', open); };
+      if (opened.indexOf(btn.dataset.target) >= 0) set(true);
+      btn.addEventListener('click', function () {
+        set(el.hidden);
+        opened = Array.prototype.map.call(document.querySelectorAll('.hint:not([hidden])'), function (e) { return e.id; });
+        sessionStorage.setItem('sample-open', JSON.stringify(opened));
+      });
     });
-  });
+  })();
 </script>"""
 
 MED_CLOZE_CSS = """.card {
@@ -194,6 +209,8 @@ MED_CLOZE_CSS = """.card {
 .hint-btn { font: 600 13px -apple-system, system-ui, sans-serif; padding: 6px 14px; border-radius: 999px; border: 1px solid #c9ccd3; background: transparent; color: #505866; cursor: pointer; }
 .hint-btn.open { background: #1d4ed8; border-color: #1d4ed8; color: white; }
 .hint { margin-top: .8em; font-size: .82em; color: #505866; }
+.hint.resource img { max-width: 100%; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+.hint-btn + .hint-btn { margin-left: 6px; }
 img { max-width: 100%; border-radius: 8px; }
 
 /* Night mode: Anki sets .nightMode / .night_mode on <body> */
@@ -210,3 +227,11 @@ BASIC_CSS_ADDITION = """
 img { max-width: 100%; height: auto; margin-top: .6em; }
 .nightMode img { filter: invert(.88) hue-rotate(180deg); }
 """
+
+
+# First Aid / Sketchy resource fields for some cloze notes, keyed by deck.
+RESOURCES = {
+    "Step 1::Cardio::Pharm": ('<img src="fa_cardio_pharm.svg">', '<img src="sketchy_digoxin.svg"><br>'
+                              '<a href="https://www.sketchy.com/">Watch on Sketchy</a>'),
+    "Step 1::Micro::Bacteria": ('<img src="fa_micro_bacteria.svg">', '<img src="sketchy_staph.svg">'),
+}

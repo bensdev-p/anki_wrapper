@@ -16,7 +16,7 @@ import { TopBar } from '../components/TopBar'
 import { useDecks } from '../lib/decks'
 import { modKey } from '../lib/platform'
 import { navigate } from '../lib/router'
-import { requestSync, SYNCED_EVENT } from '../lib/sync'
+import { requestSync, SYNCED_EVENT, useSync } from '../lib/sync'
 import { whenOnline } from '../lib/connection'
 import { useTheme } from '../themes/ThemeProvider'
 
@@ -95,6 +95,8 @@ export function Study({ deckId, paused, onOpenPalette }: Props) {
   const [typeAnswerHtml, setTypeAnswerHtml] = useState<string | null>(null)
   const [sheet, setSheet] = useState<'info' | 'edit' | null>(null)
   const [sending, setSending] = useState(false)
+  const { status: syncStatus } = useSync()
+  const missingNoticeFor = useRef<number | null>(null)
   const inputPaused = paused || sheet !== null
 
   const card = state?.card ?? null
@@ -326,6 +328,34 @@ export function Study({ deckId, paused, onOpenPalette }: Props) {
 
   const onCardKey = useCallback((e: CardKeyEvent) => !inputPaused && handleKey(e), [handleKey, inputPaused])
 
+  // Deck scripts driving the reviewer, as on Anki desktop (e.g. AnKing's
+  // "one by one" clozes call pycmd("ans") to reveal the back).
+  const onCommand = useCallback(
+    (cmd: string) => {
+      if (cmd === 'ans') flip()
+      else if (/^ease[1-4]$/.test(cmd) && side === 'answer') void answer(Number(cmd.slice(4)) as Rating)
+    },
+    [answer, flip, side],
+  )
+
+  // One quiet notice per card when an image can't load, saying why.
+  const onMissingMedia = useCallback(
+    (src: string) => {
+      if (!card || missingNoticeFor.current === card.card_id) return
+      const name = decodeURIComponent(src.split('/').pop() ?? src)
+      // "_file" media are note type assets (icons), not card content: only
+      // worth a notice while media is still syncing.
+      if (name.startsWith('_') && !syncStatus?.media_active) return
+      missingNoticeFor.current = card.card_id
+      toast(
+        syncStatus?.media_active
+          ? 'Some images are still downloading from AnkiWeb. They’ll appear once media sync finishes.'
+          : `An image on this card isn’t in this device’s media (${name}).`,
+      )
+    },
+    [card, syncStatus, toast],
+  )
+
   const onPlay = useCallback(
     (ref: string) => {
       const [, s, idx] = ref.split(':')
@@ -421,6 +451,8 @@ export function Study({ deckId, paused, onOpenPalette }: Props) {
                 onTap={flip}
                 onPlay={onPlay}
                 onTyped={(v) => (typed.current = v)}
+                onCommand={onCommand}
+                onMissingMedia={onMissingMedia}
               />
               {card && (card.flag > 0 || card.marked) && (
                 <div className="card-badges">

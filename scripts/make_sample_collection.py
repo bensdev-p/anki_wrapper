@@ -69,6 +69,10 @@ def _write_media(col: Collection) -> None:
         "gram_stain_clusters.svg": _gram_stain_svg().encode(),
         "heart_diagram.svg": HEART_SVG.encode(),
         "s3_gallop.wav": _gallop_wav(),
+        "fa_cardio_pharm.svg": _page_svg("FIRST AID · Cardiovascular Pharmacology", "#b91c1c").encode(),
+        "fa_micro_bacteria.svg": _page_svg("FIRST AID · Microbiology: Bacteria", "#b91c1c").encode(),
+        "sketchy_digoxin.svg": _page_svg("SKETCHY · Digoxin scene", "#7c3aed").encode(),
+        "sketchy_staph.svg": _page_svg("SKETCHY · Staph aureus scene", "#7c3aed").encode(),
     }.items():
         col.media.write_data(name, data)
 
@@ -118,6 +122,22 @@ def _gram_stain_svg() -> str:
         '<defs><radialGradient id="f"><stop offset="0" stop-color="#fdf2f8"/>'
         '<stop offset="1" stop-color="#f5d0e0"/></radialGradient></defs>'
         '<circle cx="200" cy="130" r="128" fill="url(#f)"/>' + "".join(cells) + "</svg>"
+    )
+
+
+def _page_svg(title: str, accent: str) -> str:
+    """A stand-in for a resource screenshot (a book page or a scene)."""
+    lines = "".join(
+        f'<rect x="40" y="{110 + i * 26}" width="{520 - (i * 37) % 180}" height="10" rx="5" fill="#d7dbe2"/>'
+        for i in range(9)
+    )
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 360" width="600" height="360" '
+        'font-family="Helvetica, Arial, sans-serif">'
+        '<rect width="600" height="360" fill="#fdfdfb"/>'
+        f'<rect width="600" height="64" fill="{accent}"/>'
+        f'<text x="40" y="41" font-size="22" font-weight="700" fill="#fff">{title}</text>'
+        f"{lines}</svg>"
     )
 
 
@@ -192,7 +212,7 @@ def _add_med_cloze_notetype(col: Collection) -> dict:
     mm = col.models
     m = mm.new(MED_CLOZE)
     m["type"] = MODEL_CLOZE
-    for name in ("Text", "Extra", "Source"):
+    for name in ("Text", "Extra", "Source", "First Aid", "Sketchy"):
         mm.add_field(m, mm.new_field(name))
     t = mm.new_template("Cloze")
     t["qfmt"] = content.MED_CLOZE_FRONT
@@ -225,6 +245,8 @@ def _add_notes(col: Collection, med_cloze: dict) -> None:
         note["Text"], note["Extra"] = text, extra
         if i % 3 == 0:
             note["Source"] = "Sample lecture notes, week " + str(1 + i % 8)
+        if deck in content.RESOURCES:
+            note["First Aid"], note["Sketchy"] = content.RESOURCES[deck]
         note.tags = [deck.split("::")[1].lower(), "sample", "cloze"]
         col.add_note(note, did)  # type: ignore[arg-type]
 

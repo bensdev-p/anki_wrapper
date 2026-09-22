@@ -8,12 +8,51 @@
   var baseClass = ''
   var themeClass = ''
 
+  // Storage for deck scripts. The sandbox has an opaque origin, so the real
+  // sessionStorage/localStorage throw; popular note types (AnKing's
+  // anki-persistence: cloze hints, shuffled lists) then break. Provide:
+  //  - sessionStorage: in memory, living as long as this card document
+  //    (like AnkiMobile's web view, where anki-persistence uses it);
+  //  - localStorage: seeded from and saved to the app (deck preferences),
+  //    namespaced, and never able to reach the app's own storage.
+  function MemoryStorage(seed, onChange) {
+    var data = Object.assign({}, seed || {})
+    var api = {
+      getItem: function (k) { k = String(k); return Object.prototype.hasOwnProperty.call(data, k) ? data[k] : null },
+      setItem: function (k, v) { data[String(k)] = String(v); if (onChange) onChange(data) },
+      removeItem: function (k) { delete data[String(k)]; if (onChange) onChange(data) },
+      clear: function () { data = {}; if (onChange) onChange(data) },
+      key: function (i) { return Object.keys(data)[i] === undefined ? null : Object.keys(data)[i] },
+    }
+    Object.defineProperty(api, 'length', { get: function () { return Object.keys(data).length } })
+    // Object.keys(sessionStorage) is used by anki-persistence: expose items as keys too.
+    return new Proxy(api, {
+      get: function (t, p) { return p in t ? t[p] : (Object.prototype.hasOwnProperty.call(data, p) ? data[p] : undefined) },
+      ownKeys: function () { return Object.keys(data) },
+      getOwnPropertyDescriptor: function (t, p) {
+        return Object.prototype.hasOwnProperty.call(data, p) ? { value: data[p], enumerable: true, configurable: true } : undefined
+      },
+    })
+  }
+  var saveTimer = null
+  function install(name, storage) {
+    try { Object.defineProperty(window, name, { value: storage, configurable: true }) } catch { /* keep native */ }
+  }
+  install('sessionStorage', MemoryStorage())
+  install('localStorage', MemoryStorage(window.__lacunaLocal, function (data) {
+    clearTimeout(saveTimer)
+    saveTimer = setTimeout(function () { post({ type: 'storage', data: data }) }, 300)
+  }))
+
   // Globals Anki's reviewer provides that deck scripts commonly use.
   window.onUpdateHook = []
   window.onShownHook = []
   window.ankiPlatform = 'desktop'
+  // pycmd bridge (aqt.reviewer._linkHandler): audio, show answer, answer buttons.
   window.pycmd = function (cmd) {
-    if (typeof cmd === 'string' && cmd.indexOf('play:') === 0) post({ type: 'play', ref: cmd })
+    if (typeof cmd !== 'string') return false
+    if (cmd.indexOf('play:') === 0) post({ type: 'play', ref: cmd })
+    else if (cmd === 'ans' || /^ease[1-4]$/.test(cmd)) post({ type: 'pycmd', cmd: cmd })
     return false
   }
 
@@ -118,10 +157,31 @@
       post({ type: 'play', ref: btn.getAttribute('data-av') })
       return
     }
+    // Web links (First Aid / Boards & Beyond links, references…) open in a new
+    // tab, as Anki opens them in the browser, instead of replacing the card.
+    var link = e.target.closest && e.target.closest('a[href]')
+    if (link) {
+      var href = link.getAttribute('href') || ''
+      if (/^https?:\/\//i.test(href)) {
+        e.preventDefault()
+        post({ type: 'open', url: href })
+        return
+      }
+    }
     // Tapping empty card space flips / advances, like AnkiMobile.
     var interactive = e.target.closest && e.target.closest('a, button, input, textarea, select, label, summary, details, [onclick], [role="button"], .cloze-hint, [contenteditable]')
     if (!interactive && !(window.getSelection && String(window.getSelection()))) post({ type: 'tap' })
   })
+
+  // Images that fail to load are usually media that hasn't synced to this
+  // device yet (big decks carry gigabytes of First Aid / Sketchy images).
+  document.addEventListener('error', function (e) {
+    var t = e.target
+    if (t && t.tagName === 'IMG') {
+      t.classList.add('lacuna-missing')
+      post({ type: 'missing', src: t.getAttribute('src') || '' })
+    }
+  }, true)
 
   // Keys the study screen handles (Anki desktop's reviewer shortcuts).
   var PLAIN = ' |Enter|1|2|3|4|Escape|*|-|=|@|!|r|R|e|E|i|I|.'.split('|')

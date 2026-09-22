@@ -30,25 +30,56 @@ interface Props {
   onTap(): void
   onPlay(ref: string): void
   onTyped?(value: string): void
+  /** Deck scripts called pycmd("ans") or pycmd("easeN"), as on Anki desktop. */
+  onCommand?(cmd: string): void
+  /** An image on the card couldn't be loaded (e.g. media not synced yet). */
+  onMissingMedia?(src: string): void
+}
+
+// Deck scripts' localStorage (preferences), kept by the app between sessions.
+const CARD_STORAGE_KEY = 'lacuna.cardLocalStorage'
+function loadCardStorage(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(CARD_STORAGE_KEY) || '{}')
+  } catch {
+    return {}
+  }
+}
+function saveCardStorage(data: unknown) {
+  try {
+    const json = JSON.stringify(data)
+    if (json.length < 200_000) localStorage.setItem(CARD_STORAGE_KEY, json)
+  } catch {
+    // storage full or unavailable: deck preferences just won't persist
+  }
 }
 
 // Card scripts may not talk to the network (our API included) or navigate us.
+// One exception: AnKing's note type looks up word summaries on Wikipedia.
 const CSP = [
   "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
-  "connect-src 'none'",
+  'connect-src https://en.wikipedia.org',
   "form-action 'none'",
 ].join('; ')
 
 // Anki's platform classes (aqt.theme.body_class). Her devices are all Apple.
 const PLATFORM_CLASS = isApple ? 'isMac' : navigator.userAgent.includes('Windows') ? 'isWin' : 'isLin'
 
+// Cards render as on AnkiMobile: <html class="mobile">. Lacuna has no desktop
+// add-ons, and popular note types show add-on-free alternatives on mobile. E.g.
+// AnKing's tag-based "First Aid Links" / "Boards and Beyond Links" buttons
+// (which the AnkiHub add-on replaces on desktop) only appear with .mobile.
+const isIPad = /iPad/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)
+const HTML_CLASS = ['mobile', /iPhone|iPod/.test(navigator.userAgent) ? 'iphone' : isIPad ? 'ipad' : ''].join(' ').trim()
+
 function buildSrcDoc(mediaBaseUrl: string): string {
   const escapeAttr = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
   return `<!doctype html>
-<html><head><meta charset="utf-8">
+<html class="${HTML_CLASS}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="${escapeAttr(CSP)}">
 <base href="${escapeAttr(mediaBaseUrl)}">
+<script>window.__lacunaLocal = ${JSON.stringify(loadCardStorage()).replace(/</g, '\\u003c')}</script>
 <style>${baseCss}</style>
 <style id="notetype-css"></style>
 </head><body><div id="qa"></div>
@@ -61,13 +92,13 @@ function buildSrcDoc(mediaBaseUrl: string): string {
  * only: opaque origin, so deck JS can't reach the app or its storage).
  * One document persists for the whole session, like Anki's reviewer webview.
  */
-export function CardFrame({ renderKey, rendered, side, theme, mediaBaseUrl, scrollToAnswer = true, typeAnswerHtml, onKey, onTap, onPlay, onTyped }: Props) {
+export function CardFrame({ renderKey, rendered, side, theme, mediaBaseUrl, scrollToAnswer = true, typeAnswerHtml, onKey, onTap, onPlay, onTyped, onCommand, onMissingMedia }: Props) {
   const frame = useRef<HTMLIFrameElement>(null)
   const ready = useRef(false)
   const pending = useRef<object[]>([])
   const lastRendered = useRef<string | null>(null)
-  const handlers = useRef({ onKey, onTap, onPlay, onTyped })
-  handlers.current = { onKey, onTap, onPlay, onTyped }
+  const handlers = useRef({ onKey, onTap, onPlay, onTyped, onCommand, onMissingMedia })
+  handlers.current = { onKey, onTap, onPlay, onTyped, onCommand, onMissingMedia }
 
   const srcDoc = useMemo(() => buildSrcDoc(mediaBaseUrl), [mediaBaseUrl])
 
@@ -92,6 +123,12 @@ export function CardFrame({ renderKey, rendered, side, theme, mediaBaseUrl, scro
       else if (msg.type === 'tap') handlers.current.onTap()
       else if (msg.type === 'play' && typeof msg.ref === 'string') handlers.current.onPlay(msg.ref)
       else if (msg.type === 'typed' && typeof msg.value === 'string') handlers.current.onTyped?.(msg.value)
+      else if (msg.type === 'pycmd' && typeof msg.cmd === 'string') handlers.current.onCommand?.(msg.cmd)
+      else if (msg.type === 'missing' && typeof msg.src === 'string') handlers.current.onMissingMedia?.(msg.src)
+      else if (msg.type === 'storage' && msg.data && typeof msg.data === 'object') saveCardStorage(msg.data)
+      else if (msg.type === 'open' && typeof msg.url === 'string' && /^https?:\/\//i.test(msg.url)) {
+        window.open(msg.url, '_blank', 'noopener,noreferrer')
+      }
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
