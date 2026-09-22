@@ -58,3 +58,13 @@ class CollectionHost:
             return fn(self._col)
 
         return await asyncio.get_running_loop().run_in_executor(self._executor, call)
+
+    def unlocked(self, fn: Callable[[Collection], T]) -> T | None:
+        """Call `fn(col)` on the *current* thread, bypassing the collection thread.
+
+        Only for Anki's progress polling (`latest_progress`), which aqt also
+        calls from its UI thread while a sync runs in the background. Never
+        use it for anything that reads or writes collection data.
+        """
+        col = self._col
+        return fn(col) if col is not None else None

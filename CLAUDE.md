@@ -10,9 +10,26 @@ than any feature.**
   through `backend/safety.py` (`resolve_collection_path` / `assert_safe_path`),
   which allows paths inside `data/` and rejects Anki profile folders
   (`Anki2`, `AnkiDroid`). Don't bypass or loosen this guard.
-- Real cards reach the app only as a **copy**: a `.colpkg` export imported with
-  `scripts/import_colpkg.py` into `data/demo/`. The `.colpkg` is only read.
-- **No AnkiWeb sync.** Don't implement it, and don't store or ask for credentials.
+- Her real cards reach the app either as an AnkiWeb-synced device collection
+  (`data/synced/`, see below) or as a **copy** of a `.colpkg` export
+  (`scripts/import_colpkg.py` → `data/demo/`; the `.colpkg` is only read).
+- **AnkiWeb sync is allowed only as below** (added at the user's request; she
+  syncs a MacBook and an iMac through AnkiWeb, and this device joins them):
+  - Only `data/synced/collection.anki2` may sync (`safety.is_sync_collection`).
+    The sample and demo copies never sync.
+  - **Never full-upload.** `service/sync.py` has no upload path, and a test
+    enforces that. When Anki needs a one-way sync, the only option is
+    downloading AnkiWeb's copy to this device. Uploading is left to Anki desktop.
+  - Back up (Anki's `create_backup`) before every sync, and force a backup
+    before a full download.
+  - Store only the sync key (`hkey`), in `data/synced/sync.json` with 0600
+    permissions. Never store a password. Sign-in happens on the Pi via
+    `scripts/sync_setup.py`, so the password never crosses the network.
+  - Develop and test against Anki's local sync server
+    (`python -m anki.syncserver`), never real AnkiWeb.
+  - No operation may call `col.mod_schema()` or change note types. A schema
+    change forces a one-way sync, which would discard this device's unsynced
+    reviews.
 - Never commit anything under `data/`, or any `.anki2`, `.colpkg` or `.apkg` file.
 - Tests and experiments use their own collections under `data/` (e.g.
   `data/.pytest/`), never `data/dev` or `data/demo` in place.
@@ -64,7 +81,8 @@ than any feature.**
 python3 -m venv .venv && .venv/bin/pip install -r backend/requirements.txt
 (cd frontend && npm ci)
 .venv/bin/python scripts/make_sample_collection.py [--force]
-./scripts/dev.sh                              # API :8000 (localhost) + Vite :5173 (LAN)
+./scripts/dev.sh [--synced]                   # API :8000 (localhost) + Vite :5173 (LAN)
+.venv/bin/python scripts/sync_setup.py        # sign this device in to AnkiWeb (on the Pi)
 .venv/bin/pytest                              # backend tests
 (cd frontend && npx tsc -b && npm run lint)   # frontend checks
 .venv/bin/python scripts/benchmark.py         # 100k-card timings

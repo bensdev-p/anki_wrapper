@@ -12,6 +12,7 @@ from .render import render_card
 from .review import answer_card, select_deck, study_state, undo
 from .search import search_cards
 from .stats import stats
+from . import sync
 
 __all__ = [
     "NotFound",
@@ -25,6 +26,7 @@ __all__ = [
     "search_cards",
     "select_deck",
     "stats",
+    "sync",
     "study_state",
     "undo",
 ]

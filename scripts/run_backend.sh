@@ -4,8 +4,13 @@
 #
 #   ./scripts/run_backend.sh                                   # dev sample collection
 #   COLLECTION_PATH=data/demo/collection.anki2 ./scripts/run_backend.sh
+#   ./scripts/run_backend.sh --synced                          # AnkiWeb-synced collection
 #   HOST=0.0.0.0 ./scripts/run_backend.sh                      # also serve frontend/dist on the LAN
 set -euo pipefail
 cd "$(dirname "$0")/.."
+if [[ "${1:-}" == "--synced" ]]; then
+  export COLLECTION_PATH=data/synced/collection.anki2
+  shift
+fi
 exec .venv/bin/uvicorn api.main:app --app-dir backend \
   --host "${HOST:-127.0.0.1}" --port "${PORT:-8000}" --workers 1 "$@"

@@ -1,8 +1,10 @@
 """Where collections may live, and the guard that keeps real ones out of reach.
 
-Her real collection must never be opened or modified by this project. Every
-collection this code opens has to sit inside the repo's ``data/`` directory:
-either the synthetic dev collection or a *copy* imported from a .colpkg.
+Anki desktop's profile folders are never opened or modified by this project.
+Every collection this code opens sits inside the repo's ``data/`` directory:
+the synthetic dev collection, a *copy* imported from a .colpkg, or the
+collection this device keeps in step with AnkiWeb (``data/synced/``). Only
+that last one may ever sync.
 """
 
 from __future__ import annotations
@@ -14,6 +16,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = REPO_ROOT / "data"
 DEV_COLLECTION = DATA_DIR / "dev" / "collection.anki2"
 DEMO_DIR = DATA_DIR / "demo"
+_DEFAULT_SYNCED_DIR = DATA_DIR / "synced"
 
 # Folder names used by Anki desktop / AnkiDroid profiles on each OS.
 _PROFILE_MARKERS = {"anki2", "ankidroid"}
@@ -30,6 +33,17 @@ def resolve_collection_path() -> Path:
     if not path.is_absolute():
         path = REPO_ROOT / path
     return assert_safe_path(path)
+
+
+def synced_dir() -> Path:
+    """Folder of the one collection allowed to sync ($SYNCED_DIR, for tests)."""
+    raw = os.environ.get("SYNCED_DIR")
+    return assert_safe_path(Path(raw) if raw else _DEFAULT_SYNCED_DIR)
+
+
+def is_sync_collection(path: Path) -> bool:
+    """True only for data/synced/collection.anki2: sample and demo copies never sync."""
+    return path.resolve() == synced_dir() / "collection.anki2"
 
 
 def assert_safe_path(path: Path) -> Path:

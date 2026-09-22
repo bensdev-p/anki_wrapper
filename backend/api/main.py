@@ -30,6 +30,7 @@ from service.types import (
 )
 
 from .host import CollectionHost
+from .sync_manager import SyncManager, SyncStatus
 
 # SVG and some audio types aren't in every system's mime table.
 mimetypes.add_type("image/svg+xml", ".svg")
@@ -44,9 +45,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     host = CollectionHost(resolve_collection_path())
     host.open()
     app.state.host = host
+    app.state.sync = SyncManager(host)
     try:
         yield
     finally:
+        await app.state.sync.wait()
         host.close()
 
 
@@ -77,6 +80,7 @@ class Info:
     collection: str
     is_sample: bool
     card_count: int
+    sync_enabled: bool
 
 
 @app.get("/api/info")
@@ -87,6 +91,7 @@ async def info(request: Request) -> Info:
         collection=host.path.parent.name,
         is_sample=host.path == DEV_COLLECTION.resolve(),
         card_count=count,
+        sync_enabled=request.app.state.sync.enabled,
     )
 
 
@@ -179,6 +184,36 @@ async def stats(
 
 # Only touched from the collection thread.
 _stats_cache: dict[tuple, StatsSummary] = {}
+
+
+@app.get("/api/sync")
+async def sync_status(request: Request) -> SyncStatus:
+    return await request.app.state.sync.status()
+
+
+@app.post("/api/sync")
+async def sync_start(request: Request) -> SyncStatus:
+    """Start a normal two-way sync in the background; poll GET /api/sync."""
+    manager: SyncManager = request.app.state.sync
+    if not manager.enabled:
+        raise HTTPException(409, "Sync isn't set up for this collection.")
+    manager.start_sync()
+    return await manager.status()
+
+
+@app.post("/api/sync/full-download")
+async def sync_full_download(request: Request) -> SyncStatus:
+    """Replace this device's copy with AnkiWeb's, when Anki requires a one-way sync.
+
+    There is intentionally no full-upload endpoint: this app never overwrites
+    the AnkiWeb collection wholesale.
+    """
+    manager: SyncManager = request.app.state.sync
+    try:
+        manager.start_full_download()
+    except PermissionError as err:
+        raise HTTPException(409, str(err)) from err
+    return await manager.status()
 
 
 @app.get("/api/media/{filename:path}")

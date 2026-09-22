@@ -190,3 +190,36 @@ class StatsSummary:
     """Keys: today, yesterday, week, month, year, all_time."""
     average_retrievability: float | None
     """FSRS average probability of recall (0-1), when FSRS is on."""
+
+
+# Sync
+##########################################################################
+
+
+@dataclass
+class SyncCredentials:
+    """AnkiWeb sync key (never the password). Revoked by changing the password."""
+
+    username: str
+    hkey: str
+    endpoint: str
+    """"" = AnkiWeb; otherwise a self-hosted sync server URL."""
+
+
+SyncRequired = Literal["none", "full_download", "full_sync", "server_empty"]
+
+
+@dataclass
+class SyncResult:
+    required: SyncRequired
+    server_message: str
+    new_endpoint: str | None
+    server_media_usn: int
+    host_number: int
+
+
+@dataclass
+class MediaSyncState:
+    active: bool
+    summary: str
+    error: str | None

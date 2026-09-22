@@ -4,8 +4,14 @@
 #
 #   ./scripts/dev.sh                                             # sample collection
 #   COLLECTION_PATH=data/demo/collection.anki2 ./scripts/dev.sh  # imported copy
+#   ./scripts/dev.sh --synced                                    # AnkiWeb-synced collection
 set -euo pipefail
 cd "$(dirname "$0")/.."
+
+if [[ "${1:-}" == "--synced" ]]; then
+  export COLLECTION_PATH=data/synced/collection.anki2
+  [[ -f $COLLECTION_PATH ]] || { echo "Run .venv/bin/python scripts/sync_setup.py first." >&2; exit 1; }
+fi
 
 ./scripts/run_backend.sh &
 api=$!
