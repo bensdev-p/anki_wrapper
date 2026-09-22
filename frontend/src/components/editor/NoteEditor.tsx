@@ -113,7 +113,7 @@ export function NoteEditor({ noteId, open, onClose, onSaved }: Props) {
 
   useLayoutEffect(() => {
     const onMessage = (e: MessageEvent) => {
-      if (e.source !== frame.current?.contentWindow || e.data?.source !== 'lacuna-editor') return
+      if (e.source !== frame.current?.contentWindow || e.data?.source !== 'rounds-editor') return
       const msg = e.data
       if (msg.type === 'ready') {
         ready.current = true

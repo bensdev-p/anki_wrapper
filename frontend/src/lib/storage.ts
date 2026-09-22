@@ -1,6 +1,6 @@
 /** localStorage that never throws (private mode, blocked storage). */
 
-const PREFIX = 'lacuna.'
+const PREFIX = 'rounds.'
 
 export function load<T>(key: string, fallback: T): T {
   try {

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install (or update) Lacuna as a service on the Raspberry Pi: it starts at
+# Install (or update) Rounds as a service on the Raspberry Pi: it starts at
 # boot, restarts if it crashes, and serves the built app on port 8000.
 #
 #   ./scripts/install_pi.sh             # her AnkiWeb-synced collection (run sync_setup.py first)
@@ -7,7 +7,7 @@
 #   ./scripts/install_pi.sh --sample    # the synthetic sample collection
 #
 # Update later with:  git pull && ./scripts/install_pi.sh
-# Logs:               journalctl -u lacuna -f
+# Logs:               journalctl -u rounds -f
 set -euo pipefail
 cd "$(dirname "$0")/.."
 REPO="$(pwd)"
@@ -39,10 +39,18 @@ if [[ ! -f "$COLLECTION" ]]; then
   exit 1
 fi
 
-echo "→ Installing the lacuna service"
-sudo tee /etc/systemd/system/lacuna.service >/dev/null <<UNIT
+# The app used to be called Lacuna: retire its service so the two don't both
+# open the collection.
+if [[ -f /etc/systemd/system/lacuna.service ]]; then
+  echo "→ Removing the old lacuna service"
+  sudo systemctl disable --now lacuna >/dev/null 2>&1 || true
+  sudo rm -f /etc/systemd/system/lacuna.service
+fi
+
+echo "→ Installing the rounds service"
+sudo tee /etc/systemd/system/rounds.service >/dev/null <<UNIT
 [Unit]
-Description=Lacuna study app (Anki engine)
+Description=Rounds study app (Anki engine)
 After=network-online.target
 Wants=network-online.target
 
@@ -66,17 +74,17 @@ WantedBy=multi-user.target
 UNIT
 
 sudo systemctl daemon-reload
-sudo systemctl enable lacuna >/dev/null
-sudo systemctl restart lacuna
+sudo systemctl enable rounds >/dev/null
+sudo systemctl restart rounds
 
 sleep 3
 if curl -sf http://127.0.0.1:8000/api/info >/dev/null; then
   ip=$(hostname -I 2>/dev/null | awk '{print $1}')
   echo
-  echo "  Lacuna is running. On her iPhone or Mac, open:"
+  echo "  Rounds is running. On her iPhone or Mac, open:"
   echo "    http://$(hostname).local:8000   (or http://${ip:-<pi-ip>}:8000)"
   echo "  In Safari on the iPhone: Share → Add to Home Screen."
 else
-  echo "The service didn't answer yet; check: journalctl -u lacuna -n 50" >&2
+  echo "The service didn't answer yet; check: journalctl -u rounds -n 50" >&2
   exit 1
 fi

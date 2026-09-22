@@ -39,7 +39,7 @@
     try { Object.defineProperty(window, name, { value: storage, configurable: true }) } catch { /* keep native */ }
   }
   install('sessionStorage', MemoryStorage())
-  install('localStorage', MemoryStorage(window.__lacunaLocal, function (data) {
+  install('localStorage', MemoryStorage(window.__roundsLocal, function (data) {
     clearTimeout(saveTimer)
     saveTimer = setTimeout(function () { post({ type: 'storage', data: data }) }, 300)
   }))
@@ -57,7 +57,7 @@
   }
 
   function post(msg) {
-    parent.postMessage(Object.assign({ source: 'lacuna-card' }, msg), '*')
+    parent.postMessage(Object.assign({ source: 'rounds-card' }, msg), '*')
   }
 
   function applyBodyClass() {
@@ -102,16 +102,16 @@
     baseClass = msg.bodyClass
     applyBodyClass()
     qa.innerHTML = msg.html
-    qa.classList.remove('lacuna-enter')
+    qa.classList.remove('rounds-enter')
 
     var answer = msg.side === 'answer' ? document.getElementById('answer') : null
     if (msg.animate) {
       if (answer) {
         var el = answer.nextElementSibling
-        while (el) { el.classList.add('lacuna-reveal'); el = el.nextElementSibling }
+        while (el) { el.classList.add('rounds-reveal'); el = el.nextElementSibling }
       } else {
         void qa.offsetWidth
-        qa.classList.add('lacuna-enter')
+        qa.classList.add('rounds-enter')
       }
     }
     if (msg.side === 'question') window.scrollTo(0, 0)
@@ -138,7 +138,7 @@
       var slot = document.getElementById('typeans-result')
       if (slot) {
         slot.innerHTML = msg.html
-        slot.classList.add('lacuna-reveal')
+        slot.classList.add('rounds-reveal')
       }
     } else if (msg.type === 'theme') {
       themeClass = msg.bodyClass
@@ -178,7 +178,7 @@
   document.addEventListener('error', function (e) {
     var t = e.target
     if (t && t.tagName === 'IMG') {
-      t.classList.add('lacuna-missing')
+      t.classList.add('rounds-missing')
       post({ type: 'missing', src: t.getAttribute('src') || '' })
     }
   }, true)

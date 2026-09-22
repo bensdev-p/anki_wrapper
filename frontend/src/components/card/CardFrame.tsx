@@ -37,7 +37,7 @@ interface Props {
 }
 
 // Deck scripts' localStorage (preferences), kept by the app between sessions.
-const CARD_STORAGE_KEY = 'lacuna.cardLocalStorage'
+const CARD_STORAGE_KEY = 'rounds.cardLocalStorage'
 function loadCardStorage(): Record<string, string> {
   try {
     return JSON.parse(localStorage.getItem(CARD_STORAGE_KEY) || '{}')
@@ -65,7 +65,7 @@ const CSP = [
 // Anki's platform classes (aqt.theme.body_class). Her devices are all Apple.
 const PLATFORM_CLASS = isApple ? 'isMac' : navigator.userAgent.includes('Windows') ? 'isWin' : 'isLin'
 
-// Cards render as on AnkiMobile: <html class="mobile">. Lacuna has no desktop
+// Cards render as on AnkiMobile: <html class="mobile">. Rounds has no desktop
 // add-ons, and popular note types show add-on-free alternatives on mobile. E.g.
 // AnKing's tag-based "First Aid Links" / "Boards and Beyond Links" buttons
 // (which the AnkiHub add-on replaces on desktop) only appear with .mobile.
@@ -79,7 +79,7 @@ function buildSrcDoc(mediaBaseUrl: string): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="${escapeAttr(CSP)}">
 <base href="${escapeAttr(mediaBaseUrl)}">
-<script>window.__lacunaLocal = ${JSON.stringify(loadCardStorage()).replace(/</g, '\\u003c')}</script>
+<script>window.__roundsLocal = ${JSON.stringify(loadCardStorage()).replace(/</g, '\\u003c')}</script>
 <style>${baseCss}</style>
 <style id="notetype-css"></style>
 </head><body><div id="qa"></div>
@@ -113,7 +113,7 @@ export function CardFrame({ renderKey, rendered, side, theme, mediaBaseUrl, scro
     const onMessage = (e: MessageEvent) => {
       if (e.source !== frame.current?.contentWindow) return
       const msg = e.data
-      if (!msg || msg.source !== 'lacuna-card') return
+      if (!msg || msg.source !== 'rounds-card') return
       if (msg.type === 'ready') {
         ready.current = true
         const queued = pending.current

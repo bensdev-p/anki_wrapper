@@ -1,4 +1,4 @@
-# Lacuna
+# Rounds
 
 A modern study client that runs on **Anki's real engine**. Your cards, review
 history and FSRS scheduling behave exactly as they do in Anki desktop.
@@ -115,7 +115,7 @@ sudo apt install -y nodejs
 node --version           # v22.x
 
 # 3. Get the code
-git clone <this repo> lacuna && cd lacuna
+git clone <this repo> rounds && cd rounds
 
 # 4. Backend
 python3 -m venv .venv
@@ -169,7 +169,7 @@ HOST=0.0.0.0 ./scripts/run_backend.sh      # UI + API on http://<pi>.local:8000
 ./scripts/install_pi.sh --sample    # or the sample collection, to try it out
 ```
 
-This builds the app and installs a `lacuna` systemd service that starts at boot,
+This builds the app and installs a `rounds` systemd service that starts at boot,
 restarts if it crashes, and serves everything on port **8000**:
 
 ```
@@ -177,8 +177,8 @@ http://<pi-hostname>.local:8000
 ```
 
 - Update: `git pull && ./scripts/install_pi.sh`
-- Logs: `journalctl -u lacuna -f`
-- Stop / start: `sudo systemctl stop lacuna` / `sudo systemctl start lacuna`
+- Logs: `journalctl -u rounds -f`
+- Stop / start: `sudo systemctl stop rounds` / `sudo systemctl start rounds`
 
 The service backs up the collection every 30 minutes of use and when it stops,
 using Anki's own backups (kept in `backups/` next to the collection, rotated by

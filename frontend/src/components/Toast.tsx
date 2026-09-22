@@ -44,7 +44,7 @@ function OfflineBanner() {
   return (
     <div className="offline-banner" role="alert">
       <WifiOff size={15} />
-      <span>Can’t reach Lacuna. Reconnecting…</span>
+      <span>Can’t reach Rounds. Reconnecting…</span>
     </div>
   )
 }

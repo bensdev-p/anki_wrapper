@@ -306,10 +306,10 @@ def test_update_note_writes_only_changed_fields_and_undoes(col: Collection) -> N
     card = _front(col).card
     before = service.note_for_edit(col, card.note_id)
     first = before.fields[0]
-    edited = service.update_note(col, card.note_id, {first.name: first.html + " <b>edited</b>"}, tags=[*before.tags, "lacuna"])
+    edited = service.update_note(col, card.note_id, {first.name: first.html + " <b>edited</b>"}, tags=[*before.tags, "rounds"])
     assert edited.fields[0].html.endswith("<b>edited</b>")
     assert edited.fields[1:] == before.fields[1:]
-    assert "lacuna" in edited.tags
+    assert "rounds" in edited.tags
     assert "edited" in service.rerender(col, card.card_id).question_html + service.rerender(col, card.card_id).answer_html
     assert service.study_state(col).undo_label == "Update Note"
     service.undo(col)

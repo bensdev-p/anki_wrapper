@@ -104,7 +104,7 @@ def main() -> None:
     except DBError:
         sys.exit(
             "The collection is open in the running app. Stop it first "
-            "(Ctrl+C in dev.sh, or `sudo systemctl stop lacuna`) and try again."
+            "(Ctrl+C in dev.sh, or `sudo systemctl stop rounds`) and try again."
         )
 
     try:

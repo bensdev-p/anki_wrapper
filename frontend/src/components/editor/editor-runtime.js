@@ -6,7 +6,7 @@
   var timers = {}
 
   function post(msg) {
-    parent.postMessage(Object.assign({ source: 'lacuna-editor' }, msg), '*')
+    parent.postMessage(Object.assign({ source: 'rounds-editor' }, msg), '*')
   }
 
   function report(name, html) {

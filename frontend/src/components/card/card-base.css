@@ -38,16 +38,16 @@ code#typeans { white-space: pre-wrap; font-variant-ligatures: none; }
 }
 
 /* Motion: new card slides in; on flip, the answer part fades up. */
-@keyframes lacuna-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-@keyframes lacuna-reveal { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-.lacuna-enter { animation: lacuna-enter 220ms cubic-bezier(.2, .7, .2, 1) both; }
-.lacuna-reveal { animation: lacuna-reveal 260ms cubic-bezier(.2, .7, .2, 1) both; }
+@keyframes rounds-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes rounds-reveal { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.rounds-enter { animation: rounds-enter 220ms cubic-bezier(.2, .7, .2, 1) both; }
+.rounds-reveal { animation: rounds-reveal 260ms cubic-bezier(.2, .7, .2, 1) both; }
 @media (prefers-reduced-motion: reduce) {
-  .lacuna-enter, .lacuna-reveal { animation: none; }
+  .rounds-enter, .rounds-reveal { animation: none; }
 }
 
 /* An image that couldn't load: a quiet placeholder instead of a broken icon. */
-img.lacuna-missing {
+img.rounds-missing {
   display: inline-block;
   min-width: 120px;
   min-height: 60px;

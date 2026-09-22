@@ -1,6 +1,6 @@
 export const APP_NAME = 'Rounds'
 
-/** A card with a gap in it: a lacuna, as in a cloze deletion. */
+/** A card with a gap in it, as in a cloze deletion. */
 export function Logo({ size = 22 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" className="logo-mark">

@@ -1,6 +1,6 @@
 {
-  "name": "Lacuna",
-  "short_name": "Lacuna",
+  "name": "Rounds",
+  "short_name": "Rounds",
   "description": "Study your Anki collection",
   "start_url": "/",
   "display": "standalone",

@@ -150,7 +150,7 @@ def test_conflict_is_resolved_only_by_download(col_path: Path, server: str) -> N
     # A note type edit marks the schema changed *and* modifies the collection,
     # which forces a one-way sync; simulate both.
     device.mod_schema(check=False)
-    device.set_config("lacunaTest", 1)
+    device.set_config("roundsTest", 1)
     result = service.sync.sync(device, creds, backups)
     assert result.required == "full_sync"
     service.sync.full_download(device, creds, result.server_media_usn, backups)

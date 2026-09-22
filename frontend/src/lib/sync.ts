@@ -5,7 +5,7 @@ import { useBackend } from '../backend/context'
 
 /**
  * Shared sync state. Syncs run on the server; this polls while one is active
- * and announces completion with a `lacuna:synced` window event so screens can
+ * and announces completion with a `rounds:synced` window event so screens can
  * refresh (deck counts, the current card).
  */
 let status: SyncStatus | null = null
@@ -15,7 +15,7 @@ const listeners = new Set<() => void>()
 
 // Auto-sync when she comes back to the app after this long.
 const RESYNC_AFTER_MS = 10 * 60 * 1000
-export const SYNCED_EVENT = 'lacuna:synced'
+export const SYNCED_EVENT = 'rounds:synced'
 
 function emit() {
   listeners.forEach((l) => l())
