@@ -1,5 +1,5 @@
 {
-  "name": "frontend",
+  "name": "lacuna-frontend",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -24,5 +24,9 @@
     "oxlint": "^1.81.0",
     "typescript": "~6.0.2",
     "vite": "^8.3.0"
+  },
+  "license": "AGPL-3.0-or-later",
+  "engines": {
+    "node": ">=20.19"
   }
 }

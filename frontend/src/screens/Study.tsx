@@ -37,33 +37,32 @@ function formatDuration(ms: number): string {
 
 /** Plays card audio from the top-level page, which holds the user's gesture. */
 function useAudio() {
-  const current = useRef<HTMLAudioElement | null>(null)
-  const queue = useRef<string[]>([])
-  const stop = useCallback(() => {
-    queue.current = []
-    current.current?.pause()
-    current.current = null
-  }, [])
-  const playNext = useCallback(() => {
-    const url = queue.current.shift()
-    if (!url) return
-    const audio = new Audio(url)
-    current.current = audio
-    audio.addEventListener('ended', playNext, { once: true })
-    audio.play().catch(() => {
-      // Autoplay can be blocked until the first interaction; the play buttons still work.
-    })
-  }, [])
-  const play = useCallback(
-    (urls: string[]) => {
+  const player = useMemo(() => {
+    let current: HTMLAudioElement | null = null
+    let queue: string[] = []
+    function next() {
+      const url = queue.shift()
+      if (!url) return
+      current = new Audio(url)
+      current.addEventListener('ended', next, { once: true })
+      current.play().catch(() => {
+        // Autoplay can be blocked until the first interaction; the play buttons still work.
+      })
+    }
+    function stop() {
+      queue = []
+      current?.pause()
+      current = null
+    }
+    function play(urls: string[]) {
       stop()
-      queue.current = [...urls]
-      playNext()
-    },
-    [playNext, stop],
-  )
-  useEffect(() => stop, [stop])
-  return { play, stop }
+      queue = [...urls]
+      next()
+    }
+    return { play, stop }
+  }, [])
+  useEffect(() => player.stop, [player])
+  return player
 }
 
 interface Props {
