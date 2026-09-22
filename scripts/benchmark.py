@@ -64,6 +64,16 @@ def main() -> None:
         rng.shuffle(cids)
         col.sched.set_due_date(cids[: int(len(cids) * 0.7)], "1-400")
         col.sched.set_due_date(cids[:1500], "0")
+        # A year of review history (~250k log rows) so stats has real work to do.
+        now_ms = int(time.time() * 1000)
+        col.db.executemany(
+            "insert or ignore into revlog (id, cid, usn, ease, ivl, lastIvl, factor, time, type) values (?,?,?,?,?,?,?,?,?)",
+            (
+                (now_ms - rng.randint(1, 365 * 86_400_000), rng.choice(cids), -1,
+                 rng.choice([1, 3, 3, 3, 3, 4]), rng.randint(1, 200), rng.randint(1, 100), 0, rng.randint(2000, 20000), 1)
+                for i in range(250_000)
+            ),
+        )
         print(f"Built {col.card_count()} cards in {time.perf_counter() - t:.1f}s\n")
 
         top = col.decks.id_for_name("Big")
@@ -79,6 +89,8 @@ def main() -> None:
         bench("answer + next card", answer_and_next, runs=15)
         bench("undo + card again", lambda: (service.undo(col), service.study_state(col)))
         bench("search (first 50 hits)", lambda: service.search_cards(col, "lorem"))
+        bench("stats, 3 months (default)", lambda: service.stats(col, days=90))
+        bench("stats, 1 year", lambda: service.stats(col, days=365))
     finally:
         col.close()
         shutil.rmtree(root, ignore_errors=True)

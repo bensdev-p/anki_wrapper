@@ -182,3 +182,42 @@ def test_search(col: Collection) -> None:
     assert all("igoxin" in h.preview for h in result.hits)
     assert service.search_cards(col, "deck:*", limit=5).total == col.card_count()
     assert len(service.search_cards(col, "deck:*", limit=5).hits) == 5
+
+
+# Stats
+##########################################################################
+
+
+def test_stats_whole_collection(col: Collection) -> None:
+    s = service.stats(col)
+    c = s.cards
+    assert c.new + c.learning + c.young + c.mature + c.suspended + c.buried == col.card_count()
+    assert s.fsrs
+    assert len(s.reviews) > 60  # simulated months of history
+    assert all(-90 < r.day <= 0 for r in s.reviews)  # default window
+    year = service.stats(col, days=365)
+    assert year.days == 365 and len(year.reviews) >= len(s.reviews)
+    with pytest.raises(ValueError):
+        service.stats(col, days=0)
+    assert [r.day for r in s.reviews] == sorted(r.day for r in s.reviews)
+    assert s.forecast and s.forecast[0].day >= 0
+    assert s.average_retrievability is not None and 0.5 < s.average_retrievability < 1
+    assert set(s.retention) == {"today", "yesterday", "week", "month", "year", "all_time"}
+
+
+def test_stats_deck_scope_and_answer_updates_today(col: Collection) -> None:
+    did = _deck(col, "Step 1::Cardio")
+    whole, deck = service.stats(col), service.stats(col, did)
+    assert deck.deck_name == "Step 1::Cardio"
+    total = lambda s: sum(vars(s.cards).values())  # noqa: E731
+    assert 0 < total(deck) < total(whole)
+
+    state = service.select_deck(col, did)
+    service.answer_card(col, state.card.card_id, 3, 5000)
+    after = service.stats(col, did)
+    assert after.today.answered == deck.today.answered + 1
+
+
+def test_stats_unknown_deck(col: Collection) -> None:
+    with pytest.raises(service.NotFound):
+        service.stats(col, 999_999)

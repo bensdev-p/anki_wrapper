@@ -18,11 +18,13 @@ from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import service
+from service.stats import MAX_DAYS as STATS_MAX_DAYS
 from safety import DEV_COLLECTION, REPO_ROOT, resolve_collection_path
 from service.types import (
     AnswerResult,
     DeckNode,
     SearchResult,
+    StatsSummary,
     StudyState,
     UndoResult,
 )
@@ -147,6 +149,36 @@ async def search(
     limit: int = Query(50, ge=1, le=200),
 ) -> SearchResult:
     return await _host(request).run(lambda col: service.search_cards(col, q, limit))
+
+
+@app.get("/api/stats")
+async def stats(
+    request: Request,
+    deck_id: int | None = Query(None),
+    days: int = Query(90, ge=1, le=STATS_MAX_DAYS),
+) -> StatsSummary:
+    """Collection-wide stats, or one deck including its subdecks.
+
+    Computing stats takes Anki a noticeable moment on big collections, so the
+    last few results are cached. The key includes the collection's modification
+    time, which changes on every answer/undo, so a cached result is never stale.
+    """
+    host = _host(request)
+
+    def op(col):  # type: ignore[no-untyped-def]
+        key = (deck_id, days, col.mod, col.sched.today)
+        if (hit := _stats_cache.get(key)) is not None:
+            return hit
+        result = service.stats(col, deck_id, days)
+        _stats_cache.clear()  # anything older is stale anyway
+        _stats_cache[key] = result
+        return result
+
+    return await host.run(op)
+
+
+# Only touched from the collection thread.
+_stats_cache: dict[tuple, StatsSummary] = {}
 
 
 @app.get("/api/media/{filename:path}")

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import io
+import json
 import math
 import random
 import shutil
@@ -251,10 +252,13 @@ def _simulate_history(col: Collection, rng: random.Random) -> None:
     later = review[len(review) // 2 :]
     col.sched.set_due_date(due_today, "0")
     col.sched.set_due_date(overdue, "0")
-    col.sched.set_due_date(later, "1-30")
+    # "!" also sets the interval, so a good share of cards become mature (>= 21d).
+    col.sched.set_due_date(later, "3-60!")
     # set_due_date can't go into the past; shift overdue cards back directly.
     for cid in overdue:
         col.db.execute("update cards set due = due - ? where id = ?", rng.randint(1, 6), cid)
+
+    _age_review_cards(col, rng, review)
 
     for i, cid in enumerate(learning):
         # Again → first learning step; Good → second step
@@ -266,6 +270,8 @@ def _simulate_history(col: Collection, rng: random.Random) -> None:
         offset = rng.randint(20, 180) * DAY_MS + rng.randint(0, DAY_MS)
         col.db.execute("update revlog set id = id - ? where cid = ?", offset, cid)
 
+    _synthesize_daily_history(col, rng, review)
+
     # That history happened "in the past", so it shouldn't use up today's
     # new/review limits. Reset every deck's studied-today counters.
     for deck in col.decks.all():
@@ -275,6 +281,71 @@ def _simulate_history(col: Collection, rng: random.Random) -> None:
         deck["collapsed"] = deck["name"] not in _EXPANDED
         col.decks.save(deck)
 
+
+
+def _age_review_cards(col: Collection, rng: random.Random, cids: list[int]) -> None:
+    """Give review cards plausible intervals and FSRS memory state.
+
+    set_due_date() leaves every card "last reviewed just now", which makes
+    FSRS retrievability ~100%. Back-date the last review to (due - interval)
+    and set stability ≈ interval, as FSRS would at 90% desired retention.
+    """
+    today = col.sched.today
+    now = int(time.time())
+    for cid in cids:
+        due, ivl, data = col.db.first("select due, ivl, data from cards where id = ?", cid)
+        until_due = due - today
+        if ivl <= 0 or until_due <= 0:
+            ivl = rng.randint(2, 40)
+        elif ivl <= until_due:
+            ivl = until_due + rng.randint(1, max(1, until_due))
+        meta = json.loads(data or "{}")
+        meta["s"] = round(ivl * rng.uniform(0.9, 1.3), 4)
+        meta["lrt"] = now - (ivl - until_due) * 86_400 - rng.randint(0, 40_000)
+        col.db.execute("update cards set ivl = ?, data = ? where id = ?", ivl, json.dumps(meta, separators=(",", ":")), cid)
+
+
+def _synthesize_daily_history(col: Collection, rng: random.Random, cids: list[int]) -> None:
+    """Six months of plausible daily study sessions, for the stats screens.
+
+    Inserts review-log rows only (card states are unchanged): evening sessions
+    of 15-70 reviews, lighter weekends, the odd rest day, intervals growing
+    over time and pass rates around 85-92%.
+    """
+    now_ms = int(time.time() * 1000)
+    rows = []
+    seq = 0
+    for days_ago in range(180, 0, -1):
+        weekday = (time.localtime(time.time() - days_ago * 86400).tm_wday)
+        if rng.random() < (0.25 if weekday >= 5 else 0.08):
+            continue  # rest day
+        n = int(rng.randint(15, 70) * (0.6 if weekday >= 5 else 1.0))
+        # Session starts between 17:00 and 22:00 local time.
+        day_start = now_ms - days_ago * DAY_MS
+        session = day_start - (day_start % DAY_MS) + rng.randint(17, 21) * 3_600_000
+        progress = 1 - days_ago / 180  # intervals lengthen as the deck matures
+        for _ in range(n):
+            seq += 1
+            cid = rng.choice(cids)
+            kind = rng.random()
+            taken = rng.randint(2_500, 25_000)
+            if kind < 0.12:  # learning step
+                ease, rtype, ivl, last = rng.choice([1, 3, 3, 3]), 0, -600, -60
+            elif kind < 0.17:  # relearning after a lapse
+                ease, rtype, ivl, last = 3, 2, 1, -600
+            else:
+                last = max(1, int(rng.lognormvariate(1.2 + 2.3 * progress, 0.8)))
+                pass_rate = 0.92 if last >= 21 else 0.86
+                ease = (rng.choice([3, 3, 3, 3, 2, 4])) if rng.random() < pass_rate else 1
+                rtype = 1
+                ivl = -600 if ease == 1 else int(last * rng.uniform(1.8, 3.0))
+            rows.append((session + seq * 1000 + rng.randint(0, 999), cid, -1, ease, ivl, last, 0, taken, rtype))
+            session += taken + rng.randint(1_000, 6_000)
+    col.db.executemany(
+        "insert or ignore into revlog (id, cid, usn, ease, ivl, lastIvl, factor, time, type) "
+        "values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        rows,
+    )
 
 
 def _answer(col: Collection, rng: random.Random, cid: int, ease: int) -> None:

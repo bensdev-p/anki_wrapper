@@ -72,3 +72,22 @@ def test_info_and_search(client: TestClient) -> None:
     assert info["card_count"] > 0
     r = client.get("/api/search", params={"q": "digoxin"})
     assert r.json()["total"] >= 2
+
+
+def test_stats_endpoint(client: TestClient) -> None:
+    body = client.get("/api/stats").json()
+    assert body["deck_id"] is None and body["cards"]["new"] >= 0
+    did = _deck_id(client, "Step 1::Cardio")
+    assert client.get("/api/stats", params={"deck_id": did}).json()["deck_name"] == "Step 1::Cardio"
+    assert client.get("/api/stats", params={"deck_id": 424242}).status_code == 404
+
+
+def test_stats_cache_invalidates_after_answer(client: TestClient) -> None:
+    did = _deck_id(client, "Step 1")
+    before = client.get("/api/stats", params={"days": 30}).json()
+    assert client.get("/api/stats", params={"days": 30}).json() == before  # cached
+    card = client.post(f"/api/study/deck/{did}").json()["card"]
+    client.post("/api/study/answer", json={"card_id": card["card_id"], "rating": 3, "ms_taken": 1000})
+    after = client.get("/api/stats", params={"days": 30}).json()
+    assert after["today"]["answered"] == before["today"]["answered"] + 1
+    assert client.get("/api/stats", params={"days": 9999}).status_code == 422

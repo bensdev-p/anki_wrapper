@@ -111,3 +111,82 @@ class SearchResult:
     query: str
     total: int
     hits: list[SearchHit]
+
+
+# Statistics
+##########################################################################
+
+
+@dataclass
+class TodayStats:
+    answered: int
+    seconds: int
+    correct: int
+    learn: int
+    review: int
+    relearn: int
+    mature_correct: int
+    mature_answered: int
+
+
+@dataclass
+class DayReviews:
+    day: int
+    """Days relative to today (0 = today, -1 = yesterday), using Anki's rollover hour."""
+    learn: int
+    relearn: int
+    young: int
+    mature: int
+    filtered: int
+    seconds: int
+
+
+@dataclass
+class DueDay:
+    day: int
+    """Days from today (0 = due today)."""
+    count: int
+
+
+@dataclass
+class CardCountStats:
+    new: int
+    learning: int
+    """Learning + relearning."""
+    young: int
+    mature: int
+    suspended: int
+    buried: int
+
+
+@dataclass
+class RetentionCounts:
+    """Anki's "true retention": pass/fail on review cards (young < 21 days interval)."""
+
+    young_passed: int
+    young_failed: int
+    mature_passed: int
+    mature_failed: int
+
+
+@dataclass
+class StatsSummary:
+    deck_id: int | None
+    """None = whole collection."""
+    deck_name: str | None
+    days: int
+    """History window the reviews list covers."""
+    fsrs: bool
+    today: TodayStats
+    reviews: list[DayReviews]
+    """Days with at least one review in the window, ascending."""
+    forecast: list[DueDay]
+    """Future due counts per day, ascending (today first)."""
+    overdue: int
+    daily_load: int
+    """Anki's estimate of average reviews per day going forward."""
+    cards: CardCountStats
+    retention: dict[str, RetentionCounts]
+    """Keys: today, yesterday, week, month, year, all_time."""
+    average_retrievability: float | None
+    """FSRS average probability of recall (0-1), when FSRS is on."""

@@ -11,6 +11,7 @@ from .errors import NotFound, NothingToUndo, ServiceError, StaleCard
 from .render import render_card
 from .review import answer_card, select_deck, study_state, undo
 from .search import search_cards
+from .stats import stats
 
 __all__ = [
     "NotFound",
@@ -23,6 +24,7 @@ __all__ = [
     "render_card",
     "search_cards",
     "select_deck",
+    "stats",
     "study_state",
     "undo",
 ]
