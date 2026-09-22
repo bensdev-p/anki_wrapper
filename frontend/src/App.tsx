@@ -1,11 +1,13 @@
-import { Home, Play } from 'lucide-react'
+import { BarChart3, Home, Play } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { AppNav } from './components/AppNav'
 import { CommandPalette, type PaletteAction } from './components/CommandPalette'
 import { APP_NAME, Logo } from './components/Logo'
 import { TopBar } from './components/TopBar'
 import { flattenDecks, useDecks } from './lib/decks'
-import { navigate, useRoute } from './lib/router'
+import { navigate, STATS_DEFAULT_DAYS, useRoute } from './lib/router'
 import { DeckList } from './screens/DeckList'
+import { Stats } from './screens/Stats'
 import { Study } from './screens/Study'
 
 export default function App() {
@@ -27,9 +29,19 @@ export default function App() {
 
   const actions = useMemo<PaletteAction[]>(() => {
     const list: PaletteAction[] = []
-    if (route.name === 'study') {
-      list.push({ id: 'home', label: 'Back to deck list', icon: Home, run: () => navigate({ name: 'home' }) })
-    } else if (decks) {
+    if (route.name !== 'home') {
+      list.push({ id: 'home', label: 'Go to deck list', icon: Home, run: () => navigate({ name: 'home' }) })
+    }
+    if (route.name !== 'stats') {
+      const deckId = route.name === 'study' ? route.deckId : null
+      list.push({
+        id: 'stats',
+        label: deckId === null ? 'Open statistics' : 'Statistics for this deck',
+        icon: BarChart3,
+        run: () => navigate({ name: 'stats', deckId, days: STATS_DEFAULT_DAYS }),
+      })
+    }
+    if (route.name === 'home' && decks) {
       // Suggest the deck with the most due cards.
       const best = flattenDecks(decks)
         .filter((d) => d.level === 1)
@@ -63,8 +75,9 @@ export default function App() {
                 <span className="brand__name">{APP_NAME}</span>
               </a>
             }
+            center={<AppNav route={route} />}
           />
-          <DeckList />
+          {route.name === 'stats' ? <Stats deckId={route.deckId} days={route.days} /> : <DeckList />}
         </div>
       )}
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} actions={actions} />

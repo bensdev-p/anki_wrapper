@@ -102,3 +102,67 @@ export interface CollectionInfo {
   is_sample: boolean
   card_count: number
 }
+
+// Statistics (mirror service/types.py)
+
+export interface TodayStats {
+  answered: number
+  seconds: number
+  correct: number
+  learn: number
+  review: number
+  relearn: number
+  mature_correct: number
+  mature_answered: number
+}
+
+export interface DayReviews {
+  /** Days relative to today (0 = today, -1 = yesterday). */
+  day: number
+  learn: number
+  relearn: number
+  young: number
+  mature: number
+  filtered: number
+  seconds: number
+}
+
+export interface DueDay {
+  /** Days from today (0 = due today). */
+  day: number
+  count: number
+}
+
+export interface CardCountStats {
+  new: number
+  learning: number
+  young: number
+  mature: number
+  suspended: number
+  buried: number
+}
+
+export interface RetentionCounts {
+  young_passed: number
+  young_failed: number
+  mature_passed: number
+  mature_failed: number
+}
+
+export type RetentionPeriod = 'today' | 'yesterday' | 'week' | 'month' | 'year' | 'all_time'
+
+export interface StatsSummary {
+  deck_id: number | null
+  deck_name: string | null
+  days: number
+  fsrs: boolean
+  today: TodayStats
+  reviews: DayReviews[]
+  forecast: DueDay[]
+  overdue: number
+  daily_load: number
+  cards: CardCountStats
+  retention: Record<RetentionPeriod, RetentionCounts>
+  /** FSRS average probability of recall (0–1). */
+  average_retrievability: number | null
+}

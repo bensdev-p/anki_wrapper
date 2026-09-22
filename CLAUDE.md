@@ -47,6 +47,12 @@ than any feature.**
   Every theme defines every token. Spacing, type and motion tokens are in
   `src/styles/base.css`. No hard-coded colors in components (the card iframe's
   Anki compatibility CSS is the exception).
+- Chart colors are theme tokens too (`chart-1`, `mat-1..4`, `heat-0..4`,
+  `chart-other`, `chart-grid`, `chart-axis`). They were checked with the dataviz
+  palette validator against each theme's surface. Card maturity is ordinal, so it
+  uses one hue from light to dark, flipped in dark themes. Re-validate if you change
+  a surface or add a theme. Every chart needs a table view and keyboard-reachable
+  tooltips, and never a dual y-axis.
 - Keep layout shift at zero: fixed-height footers, skeletons with final dimensions.
 - Motion: subtle and quick (120–320 ms), and respect `prefers-reduced-motion`.
 - Must work in Safari on macOS and iOS: `100dvh`, safe-area insets, inputs

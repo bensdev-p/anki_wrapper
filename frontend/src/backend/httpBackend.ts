@@ -5,6 +5,7 @@ import type {
   DeckNode,
   Rating,
   SearchResult,
+  StatsSummary,
   StudyState,
   UndoResponse,
 } from './types'
@@ -56,6 +57,10 @@ export class HttpBackend implements AnkiBackend {
   search = (query: string, limit = 50) =>
     this.request<SearchResult>(
       `/search?${new URLSearchParams({ q: query, limit: String(limit) })}`,
+    )
+  stats = (deckId: number | null, days: number) =>
+    this.request<StatsSummary>(
+      `/stats?${new URLSearchParams({ days: String(days), ...(deckId === null ? {} : { deck_id: String(deckId) }) })}`,
     )
   mediaBaseUrl = () => new URL(this.base + '/media/', window.location.href).href
 }

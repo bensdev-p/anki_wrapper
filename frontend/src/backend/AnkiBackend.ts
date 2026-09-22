@@ -4,6 +4,7 @@ import type {
   DeckNode,
   Rating,
   SearchResult,
+  StatsSummary,
   StudyState,
   UndoResponse,
 } from './types'
@@ -26,6 +27,8 @@ export interface AnkiBackend {
   /** Undo the last answer; resolves with the restored study state. */
   undo(): Promise<UndoResponse>
   search(query: string, limit?: number): Promise<SearchResult>
+  /** Stats for a deck (with subdecks) or, with null, the whole collection. */
+  stats(deckId: number | null, days: number): Promise<StatsSummary>
   /** Absolute base URL that card HTML media references resolve against. */
   mediaBaseUrl(): string
 }

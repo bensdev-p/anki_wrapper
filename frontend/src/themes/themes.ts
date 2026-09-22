@@ -45,6 +45,21 @@ export type TokenName =
   | 'shadow-sm'
   | 'shadow-md'
   | 'shadow-lg'
+  // charts: validated with the dataviz palette checks against each theme's
+  // surface (see docs in CLAUDE.md). Blue family throughout.
+  | 'chart-1' // single-series marks
+  | 'mat-1' // card maturity, ordinal: new → learning → young → mature
+  | 'mat-2'
+  | 'mat-3'
+  | 'mat-4'
+  | 'chart-other' // de-emphasis (suspended / buried)
+  | 'heat-0' // heatmap: empty day
+  | 'heat-1' // heatmap: sequential, low → high
+  | 'heat-2'
+  | 'heat-3'
+  | 'heat-4'
+  | 'chart-grid'
+  | 'chart-axis'
 
 export interface Theme {
   id: string
@@ -89,6 +104,19 @@ const light: Theme = {
     'shadow-sm': '0 1px 2px rgba(20, 20, 16, 0.06)',
     'shadow-md': '0 1px 2px rgba(20, 20, 16, 0.05), 0 4px 16px rgba(20, 20, 16, 0.06)',
     'shadow-lg': '0 2px 6px rgba(20, 20, 16, 0.06), 0 24px 60px rgba(20, 20, 16, 0.18)',
+    'chart-1': '#2a78d6',
+    'mat-1': '#86b6ef',
+    'mat-2': '#3987e5',
+    'mat-3': '#1c5cab',
+    'mat-4': '#0d366b',
+    'chart-other': '#c3c2b7',
+    'heat-0': '#efeeea',
+    'heat-1': '#b7d3f6',
+    'heat-2': '#6da7ec',
+    'heat-3': '#2a78d6',
+    'heat-4': '#184f95',
+    'chart-grid': '#e8e7e1',
+    'chart-axis': '#c3c2b7',
   },
 }
 
@@ -127,6 +155,19 @@ const dark: Theme = {
     'shadow-sm': '0 1px 2px rgba(0, 0, 0, 0.4)',
     'shadow-md': '0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 20px rgba(0, 0, 0, 0.3)',
     'shadow-lg': '0 2px 8px rgba(0, 0, 0, 0.4), 0 28px 70px rgba(0, 0, 0, 0.55)',
+    'chart-1': '#3987e5',
+    'mat-1': '#184f95',
+    'mat-2': '#2a78d6',
+    'mat-3': '#6da7ec',
+    'mat-4': '#b7d3f6',
+    'chart-other': '#56554f',
+    'heat-0': '#26272c',
+    'heat-1': '#184f95',
+    'heat-2': '#2a78d6',
+    'heat-3': '#6da7ec',
+    'heat-4': '#b7d3f6',
+    'chart-grid': '#2a2b31',
+    'chart-axis': '#3a3b43',
   },
 }
 
@@ -165,6 +206,19 @@ const sepia: Theme = {
     'shadow-sm': '0 1px 2px rgba(80, 56, 20, 0.08)',
     'shadow-md': '0 1px 2px rgba(80, 56, 20, 0.07), 0 4px 16px rgba(80, 56, 20, 0.08)',
     'shadow-lg': '0 2px 6px rgba(80, 56, 20, 0.08), 0 24px 60px rgba(80, 56, 20, 0.22)',
+    'chart-1': '#2a78d6',
+    'mat-1': '#6da7ec',
+    'mat-2': '#2a78d6',
+    'mat-3': '#1c5cab',
+    'mat-4': '#0d366b',
+    'chart-other': '#c9b999',
+    'heat-0': '#eadfca',
+    'heat-1': '#b7d3f6',
+    'heat-2': '#6da7ec',
+    'heat-3': '#2a78d6',
+    'heat-4': '#184f95',
+    'chart-grid': '#e6dac4',
+    'chart-axis': '#c9b999',
   },
 }
 
@@ -203,6 +257,19 @@ const dusk: Theme = {
     'shadow-sm': '0 1px 2px rgba(0, 0, 0, 0.4)',
     'shadow-md': '0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 20px rgba(0, 0, 0, 0.3)',
     'shadow-lg': '0 2px 8px rgba(0, 0, 0, 0.4), 0 28px 70px rgba(0, 0, 0, 0.55)',
+    'chart-1': '#3987e5',
+    'mat-1': '#184f95',
+    'mat-2': '#2a78d6',
+    'mat-3': '#6da7ec',
+    'mat-4': '#b7d3f6',
+    'chart-other': '#5a5047',
+    'heat-0': '#2e2823',
+    'heat-1': '#184f95',
+    'heat-2': '#2a78d6',
+    'heat-3': '#6da7ec',
+    'heat-4': '#b7d3f6',
+    'chart-grid': '#342e28',
+    'chart-axis': '#463e36',
   },
 }
 
@@ -241,6 +308,19 @@ const highContrast: Theme = {
     'shadow-sm': '0 0 0 1px #8a8a8a',
     'shadow-md': '0 0 0 1px #c4c4c4',
     'shadow-lg': '0 0 0 2px #ffffff',
+    'chart-1': '#3987e5',
+    'mat-1': '#184f95',
+    'mat-2': '#2a78d6',
+    'mat-3': '#6da7ec',
+    'mat-4': '#b7d3f6',
+    'chart-other': '#8a8a8a',
+    'heat-0': '#1a1a1a',
+    'heat-1': '#184f95',
+    'heat-2': '#2a78d6',
+    'heat-3': '#6da7ec',
+    'heat-4': '#b7d3f6',
+    'chart-grid': '#3a3a3a',
+    'chart-axis': '#8a8a8a',
   },
 }
 

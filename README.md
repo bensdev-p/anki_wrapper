@@ -25,6 +25,19 @@ The goal is Quizlet-level polish with Anki-level power.
   The default follows the system light/dark setting, and your choice is remembered.
 - Command palette: `⌘K` / `Ctrl+K` to jump to a deck, switch theme or start studying.
 
+## Milestone 2: statistics
+
+- **Stats** tab (or `⌘K` → "Open statistics"), filtered by deck and period (1 month /
+  3 months / 1 year). One filter row scopes everything below it.
+- Tiles: studied today, streak, true retention (young/mature), due tomorrow, and FSRS
+  "recall right now" (average retrievability).
+- Charts: a review-activity calendar heatmap, reviews per day stacked by maturity,
+  upcoming reviews and card maturity. Each chart has hover/keyboard tooltips and a
+  table view.
+- All numbers come from Anki's own stats engine (the `graphs` backend call that
+  Anki desktop's Statistics screen uses). Results are cached until the collection
+  changes.
+
 ## Safety first
 
 Her real collection is never opened or modified by this project:
@@ -159,8 +172,9 @@ The tests build a fresh sample collection under `data/.pytest/` and check:
 answering a card changes its due date, undo reverts it exactly, the counts update,
 stale answers are rejected, and rendering handles audio, CSS and scripts.
 
-Benchmark on the dev container (x86_64), 100k cards: deck tree ≈ 24 ms,
-answer + next card ≈ 1.3 ms, undo ≈ 0.8 ms. Run it on the Pi for real numbers.
+Benchmark on the dev container (x86_64), 100k cards / 250k reviews: deck tree ≈ 24 ms,
+answer + next card ≈ 1.5 ms, undo ≈ 1 ms, stats ≈ 0.27 s (3 months) / 0.57 s (1 year).
+Run it on the Pi for real numbers.
 
 ## Architecture
 
@@ -171,6 +185,7 @@ backend/
     review.py     v3 flow: get_queued_cards → describe_next_states → answer_card; undo
     render.py     render_output + media escaping + play buttons (as aqt does)
     search.py     Anki search syntax → light previews
+    stats.py      Anki's graphs engine → dashboard data
   api/
     host.py       owns the single open Collection; all access on one thread
     main.py       thin FastAPI routes + /api/media + optional built UI
@@ -180,7 +195,8 @@ frontend/src/
   backend/        AnkiBackend interface + HttpBackend (swappable, e.g. add-on bridge)
   components/card CardFrame + iframe runtime (Anki reviewer semantics)
   themes/         token-based themes + provider
-  screens/        DeckList, Study
+  components/charts  SVG charts (columns, heatmap, maturity bar) on theme tokens
+  screens/        DeckList, Study, Stats
 scripts/          sample collection, .colpkg import, run scripts, benchmark
 ```
 
