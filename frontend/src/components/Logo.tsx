@@ -1,4 +1,4 @@
-export const APP_NAME = 'Lacuna'
+export const APP_NAME = 'Rounds'
 
 /** A card with a gap in it: a lacuna, as in a cloze deletion. */
 export function Logo({ size = 22 }: { size?: number }) {
