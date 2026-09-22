@@ -1,5 +1,6 @@
 import { EyeOff, Flag, Info, MoreHorizontal, Pause, PenLine, Star, Volume2 } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { FLAG_NAMES } from '../lib/flags'
 import { isApple } from '../lib/platform'
 import { Button } from './Button'
 import { Kbd } from './Kbd'
@@ -13,7 +14,6 @@ export type CardAction =
   | { kind: 'bury'; note: boolean }
   | { kind: 'suspend'; note: boolean }
 
-export const FLAG_NAMES = ['', 'Red', 'Orange', 'Green', 'Blue', 'Pink', 'Turquoise', 'Purple']
 // Ctrl+1–7, as Anki desktop (Ctrl avoids Safari's ⌘1–9 bookmark shortcuts).
 const flagKey = (n: number) => `${isApple ? '⌃' : 'Ctrl+'}${n}`
 

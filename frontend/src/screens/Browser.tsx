@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, 
 import { BackendError } from '../backend/AnkiBackend'
 import { useBackend } from '../backend/context'
 import type { BrowseActionKind, BrowseRow, BrowseSelection, BrowseSort, RenderedCard } from '../backend/types'
-import { FLAG_NAMES } from '../components/ActionsMenu'
+import { FLAG_NAMES } from '../lib/flags'
 import { Button } from '../components/Button'
 import { CardFrame } from '../components/card/CardFrame'
 import { CardInfoPanel } from '../components/CardInfoPanel'

@@ -1,5 +1,6 @@
 import { ArrowLeft, Check, Flag, RotateCcw, Star } from 'lucide-react'
-import { ActionsMenu, FLAG_NAMES, type CardAction } from '../components/ActionsMenu'
+import { ActionsMenu, type CardAction } from '../components/ActionsMenu'
+import { FLAG_NAMES } from '../lib/flags'
 import { CardInfoPanel } from '../components/CardInfoPanel'
 import { NoteEditor } from '../components/editor/NoteEditor'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
