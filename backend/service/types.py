@@ -328,3 +328,108 @@ class BrowsePage:
     offset: int
     rows: list[BrowseRow]
     fsrs: bool
+
+
+# Deck management & deck options
+##########################################################################
+
+
+@dataclass
+class DeckName:
+    id: int
+    name: str
+    """Full name, e.g. "Step 1::Cardio"."""
+    filtered: bool
+
+
+@dataclass
+class DeletedDeck:
+    name: str
+    cards: int
+    """Cards that were deleted with the deck (and its subdecks)."""
+
+
+@dataclass
+class DeckOptionsConfig:
+    """The deck options Rounds edits (Anki's DeckConfig.Config, minus the exotic ones).
+
+    Steps are in minutes, intervals in days, multipliers as Anki stores them
+    (e.g. starting ease 2.5). Enum-like fields hold Anki's enum numbers.
+    """
+
+    new_per_day: int
+    reviews_per_day: int
+    learn_steps: list[float]
+    relearn_steps: list[float]
+    graduating_interval_good: int
+    graduating_interval_easy: int
+    new_card_insert_order: int
+    leech_threshold: int
+    leech_action: int
+    minimum_lapse_interval: int
+    maximum_review_interval: int
+    initial_ease: float
+    easy_multiplier: float
+    hard_multiplier: float
+    lapse_multiplier: float
+    interval_multiplier: float
+    desired_retention: float
+    new_card_gather_priority: int
+    new_card_sort_order: int
+    new_mix: int
+    interday_learning_mix: int
+    review_order: int
+    bury_new: bool
+    bury_reviews: bool
+    bury_interday_learning: bool
+    show_timer: bool
+    cap_answer_time_to_secs: int
+    disable_autoplay: bool
+
+
+@dataclass
+class DeckPreset:
+    id: int
+    name: str
+    use_count: int
+    """Decks using this preset (editing it changes all of them)."""
+
+
+@dataclass
+class DeckOptions:
+    deck_id: int
+    deck_name: str
+    preset_id: int
+    presets: list[DeckPreset]
+    config: DeckOptionsConfig
+    fsrs: bool
+    """FSRS is on for the whole collection."""
+    has_children: bool
+
+
+# Adding notes
+##########################################################################
+
+
+@dataclass
+class NotetypeInfo:
+    id: int
+    name: str
+    fields: list[str]
+    is_cloze: bool
+
+
+@dataclass
+class AddDefaults:
+    notetypes: list[NotetypeInfo]
+    decks: list[DeckName]
+    notetype_id: int
+    deck_id: int
+
+
+@dataclass
+class AddNoteResult:
+    note_id: int
+    cards: int
+    duplicate: bool
+    """The first field matches another note of this type (added anyway, as in Anki)."""

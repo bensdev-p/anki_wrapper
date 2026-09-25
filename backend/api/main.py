@@ -27,7 +27,12 @@ from version import __version__
 from service.stats import MAX_DAYS as STATS_MAX_DAYS
 from safety import DEV_COLLECTION, REPO_ROOT, desktop_mode, is_sync_collection, resolve_collection_path, synced_dir
 from service.types import (
+    AddDefaults,
+    AddNoteResult,
     AnswerResult,
+    DeckName,
+    DeckOptions,
+    DeletedDeck,
     BrowsePage,
     CardInfo,
     NoteForEdit,
@@ -367,6 +372,107 @@ class NoteUpdate(BaseModel):
 @app.put("/api/notes/{note_id}")
 async def put_note(request: Request, note_id: int, body: NoteUpdate) -> NoteForEdit:
     return await _host(request).run(lambda col: service.update_note(col, note_id, body.fields, body.tags))
+
+
+# Decks: create, rename, delete, options
+##########################################################################
+
+
+@app.get("/api/deck-names")
+async def deck_names(request: Request) -> list[DeckName]:
+    return await _host(request).run(service.deck_names)
+
+
+class DeckNameBody(BaseModel):
+    name: str = Field(min_length=1, max_length=500)
+
+
+@app.post("/api/decks")
+async def create_deck(request: Request, body: DeckNameBody) -> DeckName:
+    return await _host(request).run(lambda col: service.create_deck(col, body.name))
+
+
+@app.patch("/api/decks/{deck_id}")
+async def rename_deck(request: Request, deck_id: int, body: DeckNameBody) -> DeckName:
+    return await _host(request).run(lambda col: service.rename_deck(col, deck_id, body.name))
+
+
+@dataclass
+class CardCount:
+    cards: int
+
+
+@app.get("/api/decks/{deck_id}/card-count")
+async def deck_card_count(request: Request, deck_id: int) -> CardCount:
+    return CardCount(await _host(request).run(lambda col: service.deck_card_count(col, deck_id)))
+
+
+@app.delete("/api/decks/{deck_id}")
+async def delete_deck(request: Request, deck_id: int) -> DeletedDeck:
+    return await _host(request).run(lambda col: service.delete_deck(col, deck_id))
+
+
+@app.get("/api/decks/{deck_id}/options")
+async def get_deck_options(request: Request, deck_id: int) -> DeckOptions:
+    return await _host(request).run(lambda col: service.deck_options.deck_options(col, deck_id))
+
+
+class DeckOptionsUpdate(BaseModel):
+    preset_id: int
+    changes: dict[str, bool | int | float | list[float]] = Field(default_factory=dict)
+    rename_preset: str | None = Field(None, max_length=200)
+    new_preset_name: str | None = Field(None, max_length=200)
+    fsrs: bool | None = None
+    apply_to_children: bool = False
+
+
+@app.put("/api/decks/{deck_id}/options")
+async def put_deck_options(request: Request, deck_id: int, body: DeckOptionsUpdate) -> DeckOptions:
+    return await _host(request).run(
+        lambda col: service.deck_options.update_deck_options(
+            col,
+            deck_id,
+            preset_id=body.preset_id,
+            changes=body.changes,
+            rename_preset=body.rename_preset,
+            new_preset_name=body.new_preset_name,
+            fsrs=body.fsrs,
+            apply_to_children=body.apply_to_children,
+        )
+    )
+
+
+# Adding notes
+##########################################################################
+
+
+@app.get("/api/add")
+async def add_defaults(request: Request, deck_id: int | None = Query(None)) -> AddDefaults:
+    return await _host(request).run(lambda col: service.add_defaults(col, deck_id))
+
+
+class NewNote(BaseModel):
+    notetype_id: int
+    deck_id: int
+    fields: dict[str, str]
+    tags: list[str] = Field(default_factory=list)
+
+
+@app.post("/api/notes")
+async def add_note(request: Request, body: NewNote) -> AddNoteResult:
+    return await _host(request).run(lambda col: service.add_note(col, body.notetype_id, body.deck_id, body.fields, body.tags))
+
+
+@dataclass
+class AddedMedia:
+    filename: str
+
+
+@app.post("/api/media")
+async def upload_media(request: Request, name: str = Query(..., min_length=1, max_length=200)) -> AddedMedia:
+    """A file pasted or dropped into a field (raw body). Returns the name to reference."""
+    data = await request.body()
+    return AddedMedia(await _host(request).run(lambda col: service.add_media(col, name, data)))
 
 
 # Browser

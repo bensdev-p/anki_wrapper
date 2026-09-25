@@ -6,10 +6,10 @@ thread-safe). In the web app that's api.host.CollectionHost; in a future
 desktop add-on it would be `mw.col` on the main thread.
 """
 
-from .decks import deck_name, deck_tree
+from .decks import create_deck, deck_card_count, deck_name, deck_names, deck_tree, delete_deck, rename_deck
 from .errors import NotFound, NothingToUndo, ServiceError, StaleCard
 from .render import render_card
-from .notes import note_for_edit, update_note
+from .notes import add_defaults, add_media, add_note, note_for_edit, update_note
 from .review import (
     answer_card,
     bury,
@@ -25,9 +25,18 @@ from .review import (
 )
 from .search import search_cards
 from .stats import stats
-from . import browser, sync
+from . import browser, deck_options, sync
 
 __all__ = [
+    "add_defaults",
+    "add_media",
+    "add_note",
+    "create_deck",
+    "deck_card_count",
+    "deck_names",
+    "deck_options",
+    "delete_deck",
+    "rename_deck",
     "NotFound",
     "NothingToUndo",
     "ServiceError",

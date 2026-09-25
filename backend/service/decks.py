@@ -6,7 +6,7 @@ from anki.collection import Collection
 from anki.decks import DeckTreeNode
 
 from .errors import NotFound
-from .types import Counts, DeckNode
+from .types import Counts, DeckName, DeckNode, DeletedDeck
 
 
 def deck_tree(col: Collection) -> list[DeckNode]:
@@ -41,3 +41,62 @@ def deck_name(col: Collection, deck_id: int) -> str:
     if name is None:
         raise NotFound(f"deck {deck_id} not found")
     return name
+
+
+# Creating, renaming and deleting decks (Anki's own operations, all undoable)
+##########################################################################
+
+DEFAULT_DECK_ID = 1
+
+
+def deck_names(col: Collection) -> list[DeckName]:
+    """Every deck by full name (sorted as Anki sorts them)."""
+    return [
+        DeckName(id=d.id, name=d.name, filtered=col.decks.is_filtered(d.id))  # type: ignore[arg-type]
+        for d in col.decks.all_names_and_ids(skip_empty_default=False, include_filtered=True)
+    ]
+
+
+def _clean_name(name: str) -> str:
+    """Tidy "Step 1 :: Cardio " into "Step 1::Cardio"; "::" nests decks."""
+    parts = [p.strip() for p in name.split("::")]
+    if not all(parts):
+        raise ValueError("Deck names can’t be empty (check for a stray “::”).")
+    return "::".join(parts)
+
+
+def create_deck(col: Collection, name: str) -> DeckName:
+    name = _clean_name(name)
+    if col.decks.id_for_name(name):
+        raise ValueError(f"There’s already a deck called “{name}”.")
+    deck_id = col.decks.add_normal_deck_with_name(name).id
+    return DeckName(id=deck_id, name=col.decks.name(deck_id), filtered=False)  # type: ignore[arg-type]
+
+
+def rename_deck(col: Collection, deck_id: int, name: str) -> DeckName:
+    """Rename or move a deck (a new "Parent::" prefix moves it). Subdecks follow."""
+    deck_name(col, deck_id)
+    name = _clean_name(name)
+    existing = col.decks.id_for_name(name)
+    if existing and existing != deck_id:
+        raise ValueError(f"There’s already a deck called “{name}”.")
+    try:
+        col.decks.rename(deck_id, name)  # type: ignore[arg-type]
+    except Exception as err:  # e.g. moving a deck into its own subdeck
+        raise ValueError(str(err) or "That name can’t be used.") from err
+    return DeckName(id=deck_id, name=col.decks.name(deck_id), filtered=col.decks.is_filtered(deck_id))  # type: ignore[arg-type]
+
+
+def delete_deck(col: Collection, deck_id: int) -> DeletedDeck:
+    """Delete a deck, its subdecks and their cards (undoable, as in Anki desktop)."""
+    name = deck_name(col, deck_id)
+    if deck_id == DEFAULT_DECK_ID:
+        raise ValueError("The Default deck can’t be deleted. It hides itself when it’s empty.")
+    out = col.decks.remove([deck_id])  # type: ignore[list-item]
+    return DeletedDeck(name=name, cards=out.count)
+
+
+def deck_card_count(col: Collection, deck_id: int) -> int:
+    """Cards in a deck and its subdecks (ids only; nothing is loaded)."""
+    deck_name(col, deck_id)
+    return len(col.decks.cids(deck_id, children=True))  # type: ignore[arg-type]
