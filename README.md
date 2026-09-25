@@ -1,17 +1,93 @@
 # Rounds
 
-A modern study client that runs on **Anki's real engine**. Your cards, review
-history and FSRS scheduling behave exactly as they do in Anki desktop.
-The goal is Quizlet-level polish with Anki-level power.
+A calm, modern study app for **Anki** users, built on Anki's real engine. Your
+cards, reviews and FSRS scheduling behave exactly as they do in Anki, and it
+syncs with AnkiWeb, so Anki on your other devices (AnkiMobile, AnkiDroid, Anki
+desktop) stays in step. Made for medical students with big decks like AnKing.
 
-> Working name. It's set in one place: `frontend/src/components/Logo.tsx`.
+- Study, add and edit cards, browse, stats, deck options, custom study,
+  filtered decks, shared-deck import, backups
+- AnKing First Aid / Sketchy / Pathoma buttons work, as on AnkiMobile
+- Use it on your phone over your home Wi-Fi, from the cards on your computer
+- Free and open source (AGPL-3.0, like Anki). Not made by or affiliated with the Anki team.
+
+## Get Rounds
+
+Download the latest version from the
+[**Releases page**](https://github.com/bensdev-p/anki_wrapper/releases/latest):
+
+| Your computer | Download |
+|---|---|
+| Mac with Apple silicon (M1 or newer) | `Rounds-…-macOS-AppleSilicon.dmg` |
+| Older Intel Mac | `Rounds-…-macOS-Intel.dmg` |
+| Windows 10 or 11 | `Rounds-…-Windows-Setup.exe` |
+| Linux | `Rounds-…-Linux-x86_64.tar.gz` |
+
+Not sure which Mac? Apple menu → **About This Mac** → look at **Chip**.
+
+**Mac:** open the `.dmg` and drag **Rounds** into **Applications**. The first time
+you open it, macOS may say it can't check Rounds for malware (the app isn't
+signed with a paid Apple developer account yet). Open **System Settings →
+Privacy & Security**, scroll down and click **Open Anyway**. You only do this once.
+
+**Windows:** run the installer. If SmartScreen says "Windows protected your PC",
+click **More info → Run anyway**. No administrator password is needed.
+
+**Linux:** extract the archive and double-click `Rounds` inside the folder.
+
+### First time
+
+1. Open Rounds and click **Sign in to AnkiWeb**. Use the same account as Anki
+   on your phone or other computer. Your password goes straight to AnkiWeb and
+   isn't saved.
+2. Click **Download from AnkiWeb**. Your decks appear; images (First Aid,
+   Sketchy…) keep downloading in the background, which can take a while for
+   big decks.
+3. Study. Rounds syncs when you open it, when you come back to it, and after a
+   study session, like Anki.
+
+No AnkiWeb account? Rounds works on its own too: create decks and add cards, or
+**Import a deck file (.apkg)**.
+
+### On your phone
+
+In Rounds, open **Settings → Use on your phone** and switch it on. Scan the QR
+code with your phone's camera (same Wi-Fi), and you're in. On an iPhone,
+**Share → Add to Home Screen** makes it feel like an app. Keep Rounds open on
+your computer while you study. If your computer asks whether Rounds may accept
+incoming connections, choose **Allow**.
+
+### Good to know
+
+- **AnkiHub / AnKing updates:** Rounds can't run Anki add-ons. Keep Anki desktop
+  for pulling AnkiHub updates now and then: update in Anki, sync, then sync
+  Rounds. Everything else can happen in Rounds.
+- **Note types** (adding fields or templates) are edited in Anki desktop.
+  Changing them forces a one-way sync, so Rounds leaves them alone.
+- **Backups:** Rounds (Anki's engine) saves a backup before every sync, every
+  30 minutes of studying and when you quit. See **Settings → Backups** to back
+  up now or restore one.
+- **Updates:** Rounds tells you when a new version is out; download it from the
+  Releases page and install it over the old one. Your cards are kept.
+- **Where your data lives:** `~/Library/Application Support/Rounds` (Mac),
+  `%APPDATA%\Rounds` (Windows), `~/.local/share/rounds` (Linux). Rounds never
+  opens Anki desktop's own files.
+- **Keyboard:** `Space` show answer, `1`–`4` answer, `⌘Z`/`Ctrl+Z` undo,
+  `A` add a card, `⌘K`/`Ctrl+K` jump anywhere.
+
+---
+
+The rest of this page is for developers, and for running Rounds on a Raspberry
+Pi as a home server (the original setup).
 
 - **Backend:** Python + FastAPI on the official headless [`anki`](https://pypi.org/project/anki/)
   package (Anki's Rust core), pinned to `anki==26.9.2`.
 - **Frontend:** React + TypeScript + Vite. Works in Safari on macOS and iPhone.
+- **Desktop app:** the same server in a native window (pywebview), packaged
+  with PyInstaller (`desktop/`).
 - **License:** AGPL-3.0, the same license as `anki`.
 
-## Milestone 1 features
+## Features
 
 - Deck list: nested tree with New / Learn / Due counts from Anki's scheduler. Collapse
   and filter it (press `/`), and click a deck to study.
@@ -31,6 +107,14 @@ The goal is Quizlet-level polish with Anki-level power.
 - Themes: Light, Dark, Parchment (warm sepia), Dusk (warm dark) and High Contrast.
   The default follows the system light/dark setting, and your choice is remembered.
 - Command palette: `⌘K` / `Ctrl+K` to jump to a deck, switch theme or start studying.
+
+- Decks: create, rename or move (`Parent::Child`), delete (with Undo), and a
+  ⋯ menu on each deck. Deck options with Anki's presets, daily limits, steps,
+  display order, FSRS and burying.
+- Add cards (`A`): note type, deck, tags; paste or drop images; `⌘⇧C` for cloze.
+- Custom study (Anki's six options), filtered decks (also from any browser
+  search: "Study these"), and importing shared decks (`.apkg`).
+- Settings: AnkiWeb account, use on your phone, import, backups, updates.
 
 ## Review tools (Anki's reviewer shortcuts)
 
@@ -71,7 +155,7 @@ The note editor saves only the fields she changed, never touches note types
 Her saved desktop browser column setup is never changed: it syncs, so changing it
 would rearrange the browser on her Mac.
 
-## Milestone 2: statistics
+## Statistics
 
 - **Stats** tab (or `⌘K` → "Open statistics"), filtered by deck and period (1 month /
   3 months / 1 year). One filter row scopes everything below it.
@@ -86,14 +170,19 @@ would rearrange the browser on her Mac.
 
 ## Safety first
 
-Her real collection is never opened or modified by this project:
+Your data matters more than any feature:
 
-- The backend opens only `$COLLECTION_PATH`, which defaults to the synthetic
-  dev collection. It **refuses any path outside `data/`**, and any path inside an Anki
-  profile folder (`Anki2`, `AnkiDroid`).
-- To use her real cards, export a `.colpkg` from Anki and import it as a **copy** (see
-  below). The export file is only read.
-- No AnkiWeb sync and no credentials, anywhere.
+- Rounds opens only its own collection: the desktop app's data folder, or the
+  repo's `data/` folder on the Pi. It **refuses Anki profile folders** (`Anki2`,
+  `AnkiDroid`), so it never touches Anki desktop's files.
+- Only the sync key is stored (never the password), readable by your user only.
+- Nothing forces a one-way sync behind your back: note types are never changed,
+  deck-option presets are never deleted, imports never modify note types. When
+  Anki does need a one-way sync, you choose the direction (the Pi can only
+  download).
+- Anki's own backups before every sync and regularly while you study.
+- Phones on the home network must pair with a code; requests from other
+  websites are refused.
 - `data/` is git-ignored, so collections are never committed.
 
 ## Setup on the Raspberry Pi 5
@@ -275,6 +364,37 @@ Reviews done in the demo only change the copy. Re-importing replaces the copy
 
 > AnkiHub/AnKing note: this only reads the exported collection. AnkiHub add-on
 > features that need the add-on itself (note updates, sync) aren't involved.
+
+## Desktop app (development and releases)
+
+```bash
+.venv/bin/pip install -r desktop/requirements.txt
+./scripts/desktop.sh                       # native window, real app data folder
+ROUNDS_DATA_DIR=data/.desk ./scripts/desktop.sh --browser   # throwaway folder, in the browser
+(cd frontend && npm run build) && .venv/bin/pyinstaller desktop/rounds.spec   # build the app
+```
+
+The launcher (`desktop/rounds_desktop.py`) runs the same server on
+`127.0.0.1` with `ROUNDS_DESKTOP=1` and the app's own data folder, and shows it
+in a native window. In the desktop app, and only there:
+
+- sign-in to AnkiWeb happens in the app (only from the computer itself);
+- when Anki needs a one-way sync, "Upload this computer's copy" is offered
+  (with a confirmation and a backup); the Pi still never uploads;
+- **Use on your phone** starts a second listener on the home network; phones
+  pair with a 6-digit code;
+- backups can be restored.
+
+To test sync without AnkiWeb, run Anki's local sync server and point Rounds at
+it: `SYNC_USER1=test:pass python -m anki.syncserver` and
+`ROUNDS_SYNC_ENDPOINT=http://127.0.0.1:8080/`.
+
+**Releasing:** set the version in `backend/version.py`, commit, then tag and
+push (`git tag v0.2.0 && git push origin v0.2.0`). The **Desktop app**
+workflow builds the Mac, Windows and Linux downloads and creates a draft
+release; check it and press **Publish**. (Actions → Desktop app → Run workflow
+builds without releasing.) Signing and notarizing the Mac app needs an Apple
+Developer account; until then users see the "Open Anyway" step above.
 
 ## Tests and checks
 
