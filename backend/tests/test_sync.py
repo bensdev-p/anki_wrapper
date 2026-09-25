@@ -159,10 +159,12 @@ def test_conflict_is_resolved_only_by_download(col_path: Path, server: str) -> N
     device.close()
 
 
-def test_sync_module_has_no_upload_path() -> None:
+def test_only_full_upload_uploads() -> None:
+    """The one place that can replace AnkiWeb's copy is full_upload (desktop app only)."""
     source = inspect.getsource(service.sync)
-    assert "upload=True" not in source
-    assert not any("upload" in name for name in dir(service.sync) if not name.startswith("_") and name != "full_download")
+    assert source.count("upload=True") == 1
+    assert "upload=True" in inspect.getsource(service.sync.full_upload)
+    assert "upload=True" not in inspect.getsource(service.sync.sync)
 
 
 # API
@@ -219,6 +221,98 @@ def test_api_sync_disabled_for_sample_collection(client: TestClient) -> None:
     assert client.get("/api/info").json()["sync_enabled"] is False
     assert client.post("/api/sync").status_code == 409
     assert client.post("/api/sync/full-download").status_code == 409
+    assert client.post("/api/sync/full-upload").status_code == 409
+    assert client.post("/api/sync/login", json={"username": "a", "password": "b"}).status_code == 409
+
+
+def test_pi_never_uploads(synced_app: TestClient) -> None:
+    """Outside the desktop app, a one-way sync can only be resolved by downloading."""
+    client = synced_app
+    status = client.get("/api/sync").json()
+    assert status["can_upload"] is False
+    assert client.post("/api/sync/full-upload").status_code == 409
+
+
+def _desktop_app(root: Path, monkeypatch: pytest.MonkeyPatch, *, seed_from: Path | None = None) -> Path:
+    """Point the app at a desktop-style data folder (optionally with a collection in it)."""
+    folder = root / "synced"
+    if seed_from:
+        folder.mkdir(parents=True)
+        shutil.copy(seed_from, folder / "collection.anki2")
+        shutil.copytree(seed_from.parent / "collection.media", folder / "collection.media")
+    monkeypatch.setenv("ROUNDS_DESKTOP", "1")
+    monkeypatch.setenv("SYNCED_DIR", str(folder))
+    monkeypatch.setenv("COLLECTION_PATH", str(folder / "collection.anki2"))
+    return folder
+
+
+def test_desktop_first_run_sign_in_and_download(col_path: Path, server: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    expected = _card_count(col_path)
+    _seed_server(col_path, server)
+    folder = _desktop_app(col_path.parent.parent / uuid.uuid4().hex, monkeypatch)
+    from api.main import app
+
+    with TestClient(app) as client:
+        # A brand-new, empty collection was created for the first run.
+        assert (folder / "collection.anki2").exists()
+        info = client.get("/api/info").json()
+        assert info["desktop"] is True and info["sync_enabled"] is False
+        assert client.get("/api/sync").json()["can_sign_in"] is True
+
+        bad = client.post("/api/sync/login", json={"username": "test", "password": "wrong", "endpoint": server})
+        assert bad.status_code == 401
+        ok = client.post("/api/sync/login", json={"username": "test", "password": "pass", "endpoint": server})
+        assert ok.status_code == 200 and ok.json()["enabled"] is True
+        saved = (folder / "sync.json").read_text()
+        assert "pass" not in saved.replace('"password"', "")  # only the key is stored
+        assert oct(os.stat(folder / "sync.json").st_mode & 0o777) == "0o600"
+
+        client.post("/api/sync")
+        assert _settle(client)["needs"] == "full_download"
+        client.post("/api/sync/full-download")
+        _settle(client)
+        assert client.get("/api/info").json()["card_count"] == expected
+
+        assert client.post("/api/sync/logout").json()["enabled"] is False
+        assert not (folder / "sync.json").exists()
+        assert client.get("/api/info").json()["card_count"] == expected  # cards stay
+
+
+def test_desktop_uploads_to_empty_ankiweb(col_path: Path, server: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    expected = _card_count(col_path)
+    folder = _desktop_app(col_path.parent.parent / uuid.uuid4().hex, monkeypatch, seed_from=col_path)
+    from api.main import app
+
+    with TestClient(app) as client:
+        client.post("/api/sync/login", json={"username": "test", "password": "pass", "endpoint": server})
+        assert client.post("/api/sync/full-upload").status_code == 409  # not requested by AnkiWeb (yet)
+        client.post("/api/sync")
+        status = _settle(client)
+        assert status["needs"] == "server_empty" and status["can_upload"] is True
+
+        # Phones on the home network can't sign in or upload. (No `with`: the
+        # app is already running; a second lifespan would reopen the collection.)
+        phone = TestClient(app, client=("192.168.1.20", 5000))
+        assert phone.get("/api/sync").json()["can_upload"] is False
+        assert phone.post("/api/sync/full-upload").status_code == 403
+        assert phone.post("/api/sync/logout").status_code == 403
+        # ...including through the dev proxy, which forwards the real address.
+        proxied = {"X-Forwarded-For": "192.168.1.20"}
+        assert client.post("/api/sync/full-upload", headers=proxied).status_code == 403
+        assert client.post("/api/sync/login", json={"username": "x", "password": "y"}, headers=proxied).status_code == 403
+
+        client.post("/api/sync/full-upload")
+        status = _settle(client)
+        assert status["needs"] is None and status["error"] is None
+        assert list((folder / "backups").glob("*.colpkg"))  # backed up first
+
+    # Another device now finds the collection on AnkiWeb.
+    creds = sync_store.load(folder).creds  # type: ignore[union-attr]
+    other = _new_device(col_path.parent.parent / uuid.uuid4().hex)
+    backups = Path(other.path).parent / "backups"
+    service.sync.full_download(other, creds, service.sync.sync(other, creds, backups).server_media_usn, backups)
+    assert other.card_count() == expected
+    other.close()
 
 
 @pytest.fixture

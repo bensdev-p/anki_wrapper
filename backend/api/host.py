@@ -21,9 +21,13 @@ T = TypeVar("T")
 
 
 class CollectionHost:
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path, create: bool = False) -> None:
         self.path = assert_safe_path(path)
-        if not self.path.exists():
+        if create:
+            # The desktop app starts with an empty collection, like Anki desktop's
+            # first profile; syncing or importing fills it.
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+        elif not self.path.exists():
             raise FileNotFoundError(
                 f"{self.path} does not exist. Build the dev collection with "
                 "`python scripts/make_sample_collection.py`, or import a .colpkg "

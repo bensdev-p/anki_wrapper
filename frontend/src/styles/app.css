@@ -1864,6 +1864,40 @@
 .sync-pop__btn + .sync-pop__btn {
   margin-top: var(--sp-2);
 }
+.sync-pop__signout {
+  display: block;
+  margin: var(--sp-3) auto 0;
+  font-size: var(--fs-xs);
+  color: var(--text-subtle);
+}
+
+/* AnkiWeb sign-in */
+.signin {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.signin > p {
+  margin: 0;
+}
+.signin__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  font-size: var(--fs-sm);
+  font-weight: 550;
+  color: var(--text-muted);
+}
+.signin__error {
+  color: var(--again);
+  font-size: var(--fs-sm);
+}
+.signin .dialog-hint {
+  margin-top: 0;
+}
+.signin .dialog-hint a {
+  color: var(--accent);
+}
 
 /* Dialog (native <dialog>) */
 
@@ -2716,4 +2750,27 @@
   opacity: 0.6;
   pointer-events: none;
   transition: opacity var(--dur-base) var(--ease-out);
+}
+
+/* First run (empty collection) */
+.welcome {
+  margin-bottom: var(--sp-5);
+  padding: var(--sp-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.welcome h2 {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-lg);
+}
+.welcome p {
+  margin: 0 0 var(--sp-4);
+  max-width: 60ch;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.welcome p:last-child {
+  margin-bottom: 0;
 }

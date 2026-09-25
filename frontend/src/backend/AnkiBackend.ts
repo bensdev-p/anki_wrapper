@@ -60,9 +60,18 @@ export interface AnkiBackend {
   sync(): Promise<SyncStatus>
   /**
    * Replace this device's copy with AnkiWeb's. Only valid when the status
-   * says `needs: 'full_download' | 'full_sync'`. There is no upload counterpart.
+   * says `needs: 'full_download' | 'full_sync'`.
    */
   fullDownload(): Promise<SyncStatus>
+  /**
+   * Replace AnkiWeb's copy with this device's. Only when the status says
+   * `can_upload` and `needs: 'full_sync' | 'server_empty'`.
+   */
+  fullUpload(): Promise<SyncStatus>
+  /** Sign in to AnkiWeb (only the sync key is kept). Rejects with a 401 on a wrong password. */
+  syncLogin(username: string, password: string): Promise<SyncStatus>
+  /** Forget the saved sign-in; the collection on this computer stays. */
+  syncLogout(): Promise<SyncStatus>
   /** Absolute base URL that card HTML media references resolve against. */
   mediaBaseUrl(): string
 }

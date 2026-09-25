@@ -8,28 +8,36 @@ than any feature.**
 
 - **Never open or modify a real user collection.** Collections are opened only
   through `backend/safety.py` (`resolve_collection_path` / `assert_safe_path`),
-  which allows paths inside `data/` and rejects Anki profile folders
-  (`Anki2`, `AnkiDroid`). Don't bypass or loosen this guard.
-- Her real cards reach the app either as an AnkiWeb-synced device collection
-  (`data/synced/`, see below) or as a **copy** of a `.colpkg` export
+  which allows paths inside the data folder and rejects Anki profile folders
+  (`Anki2`, `AnkiDroid`). Don't bypass or loosen this guard. The data folder
+  is the repo's `data/` (Pi, development), or the desktop app's own folder
+  (`$ROUNDS_DATA_DIR`, e.g. `~/Library/Application Support/Rounds`), never
+  Anki desktop's.
+- Real cards reach the app as an AnkiWeb-synced collection (`<data>/synced/`,
+  see below) or as a **copy** of a `.colpkg` export
   (`scripts/import_colpkg.py` → `data/demo/`; the `.colpkg` is only read).
-- **AnkiWeb sync is allowed only as below** (added at the user's request; she
-  syncs a MacBook and an iMac through AnkiWeb, and this device joins them):
-  - Only `data/synced/collection.anki2` may sync (`safety.is_sync_collection`).
+- **AnkiWeb sync rules.** The Pi and the desktop app are each one more Anki
+  device next to her MacBook and iMac.
+  - Only `<data>/synced/collection.anki2` may sync (`safety.is_sync_collection`).
     The sample and demo copies never sync.
-  - **Never full-upload.** `service/sync.py` has no upload path, and a test
-    enforces that. When Anki needs a one-way sync, the only option is
-    downloading AnkiWeb's copy to this device. Uploading is left to Anki desktop.
+  - **Full upload** (replacing AnkiWeb's copy) is allowed only in the desktop
+    app (`$ROUNDS_DESKTOP=1`, `safety.desktop_mode`). It happens only when Anki
+    requires a one-way sync (`full_sync` / `server_empty`), after the user
+    confirms it in a dialog, from the computer itself (not a phone on the
+    network), with a forced backup first. **The Pi never full-uploads.**
+    `service.sync.full_upload` is the only code path that uploads; tests
+    enforce all of this.
   - Back up (Anki's `create_backup`) before every sync, and force a backup
-    before a full download.
-  - Store only the sync key (`hkey`), in `data/synced/sync.json` with 0600
-    permissions. Never store a password. Sign-in happens on the Pi via
-    `scripts/sync_setup.py`, so the password never crosses the network.
+    before any one-way sync.
+  - Store only the sync key (`hkey`), in `<data>/synced/sync.json` with 0600
+    permissions. Never store a password. Sign-in happens on the computer
+    running the server: in the desktop app's dialog (`/api/sync/login`
+    accepts only loopback clients), or on the Pi via `scripts/sync_setup.py`.
+    The password never crosses the network.
   - Develop and test against Anki's local sync server
-    (`python -m anki.syncserver`), never real AnkiWeb.
+    (`python -m anki.syncserver`, `$ROUNDS_SYNC_ENDPOINT`), never real AnkiWeb.
   - No operation may call `col.mod_schema()` or change note types. A schema
-    change forces a one-way sync, which would discard this device's unsynced
-    reviews.
+    change forces a one-way sync.
 - Never commit anything under `data/`, or any `.anki2`, `.colpkg` or `.apkg` file.
 - Tests and experiments use their own collections under `data/` (e.g.
   `data/.pytest/`), never `data/dev` or `data/demo` in place.

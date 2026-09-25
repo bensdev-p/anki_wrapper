@@ -62,6 +62,23 @@ async function download(): Promise<void> {
   set(await backendRef.fullDownload())
 }
 
+async function upload(): Promise<void> {
+  if (!backendRef) return
+  set(await backendRef.fullUpload())
+}
+
+/** Sign in, then sync straight away. Throws (BackendError) on a wrong password. */
+async function login(username: string, password: string): Promise<void> {
+  if (!backendRef) return
+  set(await backendRef.syncLogin(username, password))
+  await start()
+}
+
+async function logout(): Promise<void> {
+  if (!backendRef) return
+  set(await backendRef.syncLogout())
+}
+
 function staleEnough(): boolean {
   const last = status?.last_synced_at
   return !last || Date.now() - last * 1000 > RESYNC_AFTER_MS
@@ -95,6 +112,9 @@ export function useSync() {
     status: current,
     syncNow: useCallback(() => start(), []),
     fullDownload: useCallback(() => download(), []),
+    fullUpload: useCallback(() => upload(), []),
+    login: useCallback((u: string, p: string) => login(u, p), []),
+    logout: useCallback(() => logout(), []),
   }
 }
 

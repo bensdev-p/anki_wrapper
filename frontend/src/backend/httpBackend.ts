@@ -104,5 +104,9 @@ export class HttpBackend implements AnkiBackend {
   syncStatus = () => this.request<SyncStatus>('/sync')
   sync = () => this.request<SyncStatus>('/sync', { method: 'POST' })
   fullDownload = () => this.request<SyncStatus>('/sync/full-download', { method: 'POST' })
+  fullUpload = () => this.request<SyncStatus>('/sync/full-upload', { method: 'POST' })
+  syncLogin = (username: string, password: string) =>
+    this.request<SyncStatus>('/sync/login', { method: 'POST', body: JSON.stringify({ username, password }) })
+  syncLogout = () => this.request<SyncStatus>('/sync/logout', { method: 'POST' })
   mediaBaseUrl = () => new URL(this.base + '/media/', window.location.href).href
 }

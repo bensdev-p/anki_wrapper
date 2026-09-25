@@ -1,14 +1,15 @@
 """AnkiWeb sync, following Anki desktop's own flow (aqt/sync.py).
 
-Safety policy (her AnkiWeb collection is the source of truth for all devices):
+Safety policy (the AnkiWeb collection is the source of truth for all devices):
 
 * Normal syncs merge changes both ways, exactly as Anki desktop does.
-* **This module can never full-upload.** There is deliberately no function
-  that asks Anki for a full *upload*, so this device can
-  never overwrite her AnkiWeb collection wholesale. When Anki says a one-way
-  sync is needed, the only resolution offered is downloading AnkiWeb's copy.
 * A backup (Anki's own .colpkg backups) is taken before every sync, and always
-  before a full download.
+  before a one-way sync in either direction.
+* One-way syncs happen only when Anki says one is required, and only after the
+  user picks a direction. `full_download` replaces this device's copy.
+  `full_upload` replaces AnkiWeb's copy; the caller decides whether this device
+  may do that at all (the desktop app may; the Pi never does, see
+  api/sync_manager.py).
 """
 
 from __future__ import annotations
@@ -26,9 +27,9 @@ _REQUIRED = {
     SyncCollectionResponse.NORMAL_SYNC: "none",
     # AnkiWeb has data and this device doesn't: normal for a new device.
     SyncCollectionResponse.FULL_DOWNLOAD: "full_download",
-    # Both sides changed in ways that can't be merged. We only ever offer download.
+    # Both sides changed in ways that can't be merged: the user picks a direction.
     SyncCollectionResponse.FULL_SYNC: "full_sync",
-    # AnkiWeb is empty. Uploading is Anki desktop's job, never ours.
+    # AnkiWeb is empty and this device isn't.
     SyncCollectionResponse.FULL_UPLOAD: "server_empty",
 }
 
@@ -44,10 +45,10 @@ def login(col: Collection, username: str, password: str, endpoint: str | None = 
 
 
 def sync(col: Collection, creds: SyncCredentials, backup_dir: Path) -> SyncResult:
-    """Normal two-way sync (plus media, in the background). Never uploads wholesale.
+    """Normal two-way sync (plus media, in the background). Never one-way.
 
     If Anki reports that a one-way sync is required, nothing is changed and
-    the result says what's needed; see `full_download()`.
+    the result says what's needed; see `full_download()` / `full_upload()`.
     """
     _backup(col, backup_dir, force=False)
     out = col.sync_collection(_auth(creds), sync_media=True)
@@ -74,6 +75,20 @@ def full_download(col: Collection, creds: SyncCredentials, server_media_usn: int
         col.full_upload_or_download(auth=_auth(creds), server_usn=server_media_usn, upload=False)
     finally:
         # Reopen even on failure: the backend keeps the old file if the download failed.
+        col.reopen(after_full_sync=True)
+
+
+def full_upload(col: Collection, creds: SyncCredentials, server_media_usn: int | None, backup_dir: Path) -> None:
+    """Replace AnkiWeb's collection with this device's (as aqt.sync.full_upload).
+
+    Other devices then have to download on their next sync. Only call this
+    after the user chose it; a backup of this copy is written first.
+    """
+    _backup(col, backup_dir, force=True)
+    col.close_for_full_sync()
+    try:
+        col.full_upload_or_download(auth=_auth(creds), server_usn=server_media_usn, upload=True)
+    finally:
         col.reopen(after_full_sync=True)
 
 

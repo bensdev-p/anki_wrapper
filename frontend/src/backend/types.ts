@@ -104,6 +104,8 @@ export interface CollectionInfo {
   is_sample: boolean
   card_count: number
   sync_enabled: boolean
+  /** Running as the desktop app (rather than the Pi server). */
+  desktop: boolean
 }
 
 // Statistics (mirror service/types.py)
@@ -176,8 +178,8 @@ export interface SyncStatus {
   /** This collection syncs and a sync key is saved on the server. */
   enabled: boolean
   username: string | null
-  phase: 'idle' | 'syncing' | 'downloading'
-  /** A decision only the user can make. There is never an "upload" option. */
+  phase: 'idle' | 'syncing' | 'downloading' | 'uploading'
+  /** A one-way sync decision only the user can make. */
   needs: 'full_download' | 'full_sync' | 'server_empty' | null
   error: string | null
   server_message: string | null
@@ -187,6 +189,10 @@ export interface SyncStatus {
   media_summary: string
   transferred_bytes: number | null
   total_bytes: number | null
+  /** This client may sign in/out (the collection can sync, and it's this computer). */
+  can_sign_in: boolean
+  /** This client may replace AnkiWeb's copy when a one-way sync is required (desktop app only). */
+  can_upload: boolean
 }
 
 // Card info & note editing (mirror service/types.py)

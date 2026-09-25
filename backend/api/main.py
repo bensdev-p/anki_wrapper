@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import mimetypes
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -20,7 +21,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import service
 from service.stats import MAX_DAYS as STATS_MAX_DAYS
-from safety import DEV_COLLECTION, REPO_ROOT, resolve_collection_path
+from safety import DEV_COLLECTION, REPO_ROOT, desktop_mode, is_sync_collection, resolve_collection_path
 from service.types import (
     AnswerResult,
     BrowsePage,
@@ -35,7 +36,7 @@ from service.types import (
 )
 
 from .host import CollectionHost
-from .sync_manager import SyncManager, SyncStatus
+from .sync_manager import AuthFailed, SyncManager, SyncStatus
 
 # SVG and some audio types aren't in every system's mime table.
 mimetypes.add_type("image/svg+xml", ".svg")
@@ -68,7 +69,8 @@ async def _periodic_backups(host: CollectionHost) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    host = CollectionHost(resolve_collection_path())
+    path = resolve_collection_path()
+    host = CollectionHost(path, create=desktop_mode() and is_sync_collection(path))
     host.open()
     app.state.host = host
     app.state.sync = SyncManager(host)
@@ -94,6 +96,30 @@ def _host(request: Request) -> CollectionHost:
     return request.app.state.host
 
 
+# Starlette's TestClient reports its client as "testclient".
+_LOOPBACK = {"127.0.0.1", "::1", "localhost", "testclient"}
+
+
+def _is_local(request: Request) -> bool:
+    """The request comes from this computer (the desktop window), not the network.
+
+    Behind the Vite dev proxy every request arrives from localhost, so a
+    forwarded address (X-Forwarded-For) is checked too. The header can only
+    make a request count as *less* local, never more.
+    """
+    if request.client is None or request.client.host not in _LOOPBACK:
+        return False
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return all(part.strip() in _LOOPBACK for part in forwarded.split(","))
+    return True
+
+
+def _require_local(request: Request) -> None:
+    if not _is_local(request):
+        raise HTTPException(403, "Do this on the computer running Rounds.")
+
+
 @app.exception_handler(service.ServiceError)
 async def _service_error(_: Request, exc: service.ServiceError) -> JSONResponse:
     status = 404 if isinstance(exc, service.NotFound) else 422 if isinstance(exc, service.browser.InvalidSearch) else 409
@@ -115,6 +141,8 @@ class Info:
     is_sample: bool
     card_count: int
     sync_enabled: bool
+    desktop: bool
+    """Running as the desktop app (rather than the Pi server)."""
 
 
 @app.get("/api/info")
@@ -126,6 +154,7 @@ async def info(request: Request) -> Info:
         is_sample=host.path == DEV_COLLECTION.resolve(),
         card_count=count,
         sync_enabled=request.app.state.sync.enabled,
+        desktop=desktop_mode(),
     )
 
 
@@ -397,7 +426,7 @@ _stats_cache: dict[tuple, StatsSummary] = {}
 
 @app.get("/api/sync")
 async def sync_status(request: Request) -> SyncStatus:
-    return await request.app.state.sync.status()
+    return await request.app.state.sync.status(_is_local(request))
 
 
 @app.post("/api/sync")
@@ -407,22 +436,73 @@ async def sync_start(request: Request) -> SyncStatus:
     if not manager.enabled:
         raise HTTPException(409, "Sync isn't set up for this collection.")
     manager.start_sync()
-    return await manager.status()
+    return await manager.status(_is_local(request))
+
+
+class LoginRequest(BaseModel):
+    username: str = Field(min_length=1, max_length=320)
+    password: str = Field(min_length=1, max_length=1000)
+    endpoint: str | None = Field(None, max_length=500)
+    """A self-hosted sync server; omitted for AnkiWeb."""
+
+
+@app.post("/api/sync/login")
+async def sync_login(request: Request, body: LoginRequest) -> SyncStatus:
+    """Sign in to AnkiWeb. Only the sync key is saved, never the password.
+
+    Only from this computer, so the password never crosses the network.
+    """
+    _require_local(request)
+    manager: SyncManager = request.app.state.sync
+    try:
+        # $ROUNDS_SYNC_ENDPOINT: a self-hosted sync server instead of AnkiWeb
+        # (also how development and tests use Anki's local sync server).
+        endpoint = body.endpoint or os.environ.get("ROUNDS_SYNC_ENDPOINT") or None
+        await manager.login(body.username.strip(), body.password, endpoint)
+    except AuthFailed as err:
+        raise HTTPException(401, str(err)) from err
+    except PermissionError as err:
+        raise HTTPException(409, str(err)) from err
+    return await manager.status(True)
+
+
+@app.post("/api/sync/logout")
+async def sync_logout(request: Request) -> SyncStatus:
+    """Forget the saved sync key. The collection on this computer stays."""
+    _require_local(request)
+    manager: SyncManager = request.app.state.sync
+    try:
+        manager.logout()
+    except PermissionError as err:
+        raise HTTPException(409, str(err)) from err
+    return await manager.status(True)
 
 
 @app.post("/api/sync/full-download")
 async def sync_full_download(request: Request) -> SyncStatus:
-    """Replace this device's copy with AnkiWeb's, when Anki requires a one-way sync.
-
-    There is intentionally no full-upload endpoint: this app never overwrites
-    the AnkiWeb collection wholesale.
-    """
+    """Replace this device's copy with AnkiWeb's, when Anki requires a one-way sync."""
     manager: SyncManager = request.app.state.sync
     try:
         manager.start_full_download()
     except PermissionError as err:
         raise HTTPException(409, str(err)) from err
-    return await manager.status()
+    return await manager.status(_is_local(request))
+
+
+@app.post("/api/sync/full-upload")
+async def sync_full_upload(request: Request) -> SyncStatus:
+    """Replace AnkiWeb's copy with this device's, when Anki requires a one-way sync.
+
+    Desktop app only, from this computer only, after the user confirmed it.
+    The Pi never uploads.
+    """
+    _require_local(request)
+    manager: SyncManager = request.app.state.sync
+    try:
+        manager.start_full_upload()
+    except PermissionError as err:
+        raise HTTPException(409, str(err)) from err
+    return await manager.status(True)
 
 
 @app.get("/api/media/{filename:path}")

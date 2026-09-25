@@ -1,11 +1,14 @@
-import { ArrowRight, ChevronRight, Search, X } from 'lucide-react'
+import { ArrowRight, ChevronRight, LogIn, Search, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useBackend } from '../backend/context'
 import type { CollectionInfo, Counts, DeckNode } from '../backend/types'
+import { Button } from '../components/Button'
 import { Kbd } from '../components/Kbd'
+import { SignInDialog } from '../components/SignInDialog'
 import { useDecks } from '../lib/decks'
 import { navigate } from '../lib/router'
 import { load, save } from '../lib/storage'
+import { SYNCED_EVENT, useSync } from '../lib/sync'
 
 function greeting(): string {
   const h = new Date().getHours()
@@ -74,11 +77,19 @@ export function DeckList() {
   const [info, setInfo] = useState<CollectionInfo | null>(null)
   const [query, setQuery] = useState('')
   const [collapsed, setCollapsed] = useState<Record<number, boolean>>(() => load('collapsed', {}))
+  const [signInOpen, setSignInOpen] = useState(false)
+  const { status: sync } = useSync()
   const filterRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    backend.info().then(setInfo, () => {})
+    const refresh = () => void backend.info().then(setInfo, () => {})
+    refresh()
+    window.addEventListener(SYNCED_EVENT, refresh)
+    return () => window.removeEventListener(SYNCED_EVENT, refresh)
   }, [backend])
+
+  // A brand-new desktop collection: point the way to her cards.
+  const firstRun = !!info && info.card_count === 0 && !info.is_sample
 
   // "/" focuses the filter, like many web apps.
   useEffect(() => {
@@ -178,6 +189,31 @@ export function DeckList() {
           ))}
         </dl>
       </section>
+
+      {firstRun && (
+        <section className="welcome" aria-label="Get started">
+          <h2>Welcome to Rounds</h2>
+          {sync?.enabled ? (
+            <p>
+              You’re signed in to AnkiWeb as <strong>{sync.username}</strong>. Your cards appear here after the next
+              sync.
+            </p>
+          ) : sync?.can_sign_in ? (
+            <>
+              <p>
+                Sign in with your AnkiWeb account to bring over your decks and reviews. Rounds keeps them in sync with
+                Anki on your other devices.
+              </p>
+              <Button variant="primary" onClick={() => setSignInOpen(true)}>
+                <LogIn size={16} /> Sign in to AnkiWeb
+              </Button>
+              <SignInDialog open={signInOpen} onClose={() => setSignInOpen(false)} />
+            </>
+          ) : (
+            <p>This collection has no cards yet.</p>
+          )}
+        </section>
+      )}
 
       <section className="panel" aria-label="Decks">
         <div className="panel__toolbar">

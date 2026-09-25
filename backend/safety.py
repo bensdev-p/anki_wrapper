@@ -1,10 +1,15 @@
 """Where collections may live, and the guard that keeps real ones out of reach.
 
 Anki desktop's profile folders are never opened or modified by this project.
-Every collection this code opens sits inside the repo's ``data/`` directory:
-the synthetic dev collection, a *copy* imported from a .colpkg, or the
-collection this device keeps in step with AnkiWeb (``data/synced/``). Only
-that last one may ever sync.
+Every collection this code opens sits inside one data folder:
+
+* on the Pi / in development: the repo's ``data/`` directory (the synthetic
+  dev collection, a *copy* imported from a .colpkg, and ``data/synced/``);
+* in the desktop app: the app's own folder, set by the launcher through
+  ``$ROUNDS_DATA_DIR`` (e.g. ``~/Library/Application Support/Rounds``). It is
+  separate from Anki desktop's folder, so the two apps never open the same file.
+
+Only ``<data>/synced/collection.anki2`` may ever sync.
 """
 
 from __future__ import annotations
@@ -13,7 +18,14 @@ import os
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DATA_DIR = REPO_ROOT / "data"
+
+
+def _data_dir() -> Path:
+    raw = os.environ.get("ROUNDS_DATA_DIR")
+    return Path(raw).expanduser().resolve() if raw else REPO_ROOT / "data"
+
+
+DATA_DIR = _data_dir()
 DEV_COLLECTION = DATA_DIR / "dev" / "collection.anki2"
 DEMO_DIR = DATA_DIR / "demo"
 _DEFAULT_SYNCED_DIR = DATA_DIR / "synced"
@@ -22,14 +34,30 @@ _DEFAULT_SYNCED_DIR = DATA_DIR / "synced"
 _PROFILE_MARKERS = {"anki2", "ankidroid"}
 
 
+def desktop_mode() -> bool:
+    """Running as the desktop app ($ROUNDS_DESKTOP=1, set by the launcher).
+
+    The desktop app is someone's main Anki device, so (unlike the Pi) it may
+    upload its copy to AnkiWeb when Anki requires a one-way sync, after the
+    user confirms and a backup is taken.
+    """
+    return os.environ.get("ROUNDS_DESKTOP") == "1"
+
+
 class UnsafeCollectionPath(RuntimeError):
     pass
 
 
 def resolve_collection_path() -> Path:
-    """Collection path from $COLLECTION_PATH, defaulting to the dev collection."""
+    """Collection path from $COLLECTION_PATH.
+
+    Defaults to the synced collection in the desktop app, else the dev sample.
+    """
     raw = os.environ.get("COLLECTION_PATH")
-    path = Path(raw).expanduser() if raw else DEV_COLLECTION
+    if raw:
+        path = Path(raw).expanduser()
+    else:
+        path = synced_dir() / "collection.anki2" if desktop_mode() else DEV_COLLECTION
     if not path.is_absolute():
         path = REPO_ROOT / path
     return assert_safe_path(path)
@@ -42,7 +70,7 @@ def synced_dir() -> Path:
 
 
 def is_sync_collection(path: Path) -> bool:
-    """True only for data/synced/collection.anki2: sample and demo copies never sync."""
+    """True only for <data>/synced/collection.anki2: sample and demo copies never sync."""
     return path.resolve() == synced_dir() / "collection.anki2"
 
 
@@ -57,6 +85,6 @@ def assert_safe_path(path: Path) -> Path:
         )
     if not resolved.is_relative_to(DATA_DIR.resolve()):
         raise UnsafeCollectionPath(
-            f"{resolved} is outside {DATA_DIR}. Collections must live under data/."
+            f"{resolved} is outside {DATA_DIR}. Collections must live in the data folder."
         )
     return resolved

@@ -1,17 +1,24 @@
-import { AlertCircle, Check, CloudOff, RefreshCw } from 'lucide-react'
+import { AlertCircle, Check, CloudOff, LogIn, RefreshCw } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { relativeTime, useSync } from '../lib/sync'
 import { Button } from './Button'
 import { Dialog } from './Dialog'
+import { SignInDialog } from './SignInDialog'
 
 function mb(n: number) {
   return `${(n / 1_048_576).toFixed(n > 10_485_760 ? 0 : 1)} MB`
 }
 
-/** Top-bar sync control with a status popover. Hidden when sync isn't set up. */
+/**
+ * Top-bar sync control with a status popover, plus the one-way sync
+ * decisions. Offers sign-in on the computer running Rounds; hidden elsewhere
+ * when sync isn't set up.
+ */
 export function SyncButton() {
-  const { status, syncNow, fullDownload } = useSync()
+  const { status, syncNow, fullDownload, fullUpload, logout } = useSync()
   const [open, setOpen] = useState(false)
+  const [signInOpen, setSignInOpen] = useState(false)
+  const [confirmUpload, setConfirmUpload] = useState(false)
   const [dismissedNeeds, setDismissedNeeds] = useState<string | null>(null)
   const root = useRef<HTMLDivElement>(null)
 
@@ -27,7 +34,20 @@ export function SyncButton() {
     }
   }, [open])
 
-  if (!status?.enabled) return null
+  if (!status) return null
+
+  if (!status.enabled) {
+    if (!status.can_sign_in) return null
+    return (
+      <>
+        <button className="sync-btn" onClick={() => setSignInOpen(true)} title="Sign in to AnkiWeb to sync">
+          <LogIn size={16} strokeWidth={2} />
+          <span className="sync-btn__text">Sign in</span>
+        </button>
+        <SignInDialog open={signInOpen} onClose={() => setSignInOpen(false)} />
+      </>
+    )
+  }
 
   const busy = status.phase !== 'idle'
   const attention = !!status.error || !!status.needs
@@ -42,12 +62,20 @@ export function SyncButton() {
           ? `Synced ${relativeTime(status.last_synced_at)}`
           : 'Not synced yet'
 
-  const conflictOpen = !!status.needs && status.needs !== dismissedNeeds && status.phase === 'idle'
-  const downloading = status.phase === 'downloading'
+  const needs = status.phase === 'idle' && status.needs !== dismissedNeeds ? status.needs : null
+  const dismiss = () => {
+    setConfirmUpload(false)
+    setDismissedNeeds(status.needs)
+  }
+  const transferring = status.phase === 'downloading' || status.phase === 'uploading'
   const pct =
     status.total_bytes && status.transferred_bytes !== null
       ? Math.min(100, Math.round((status.transferred_bytes / status.total_bytes) * 100))
       : null
+  const upload = () => {
+    setConfirmUpload(false)
+    void fullUpload()
+  }
 
   return (
     <div className="menu-root" ref={root}>
@@ -82,17 +110,29 @@ export function SyncButton() {
               Review sync issue…
             </Button>
           )}
+          {status.can_sign_in && (
+            <button
+              className="link sync-pop__signout"
+              disabled={busy}
+              onClick={() => {
+                setOpen(false)
+                void logout()
+              }}
+            >
+              Sign out of AnkiWeb
+            </button>
+          )}
         </div>
       )}
 
-      {/* One-way sync decisions. There is never an upload option here. */}
+      {/* New device: AnkiWeb has a collection, this one is empty. */}
       <Dialog
-        open={conflictOpen && status.needs !== 'server_empty'}
-        onClose={() => setDismissedNeeds(status.needs)}
-        title={status.needs === 'full_download' ? 'Download your collection' : 'Changes can’t be merged'}
+        open={needs === 'full_download'}
+        onClose={dismiss}
+        title="Download your collection"
         actions={
           <>
-            <Button variant="ghost" onClick={() => setDismissedNeeds(status.needs)}>
+            <Button variant="ghost" onClick={dismiss}>
               Not now
             </Button>
             <Button variant="primary" onClick={() => void fullDownload()}>
@@ -101,39 +141,110 @@ export function SyncButton() {
           </>
         }
       >
-        {status.needs === 'full_download' ? (
-          <p>AnkiWeb has your collection and this device doesn’t yet. Download it now? This can take a few minutes.</p>
-        ) : (
+        <p>AnkiWeb has your collection and this device doesn’t yet. Download it now? This can take a few minutes.</p>
+      </Dialog>
+
+      {/* Both sides changed in a way that can't be merged: pick a direction. */}
+      <Dialog
+        open={needs === 'full_sync' && !confirmUpload}
+        onClose={dismiss}
+        title="Changes can’t be merged"
+        actions={
           <>
-            <p>
-              AnkiWeb and this device both changed in a way Anki can’t merge (usually a note type edited on
-              another device).
-            </p>
-            <p>
-              <strong>Downloading AnkiWeb’s copy</strong> replaces this device’s copy. Your other devices and AnkiWeb are
-              not changed. Reviews done here since the last sync are lost. A backup is saved first.
-            </p>
+            <Button variant="ghost" onClick={dismiss}>
+              Not now
+            </Button>
+            {status.can_upload && (
+              <Button variant="secondary" onClick={() => setConfirmUpload(true)}>
+                Upload this computer’s copy
+              </Button>
+            )}
+            <Button variant="primary" onClick={() => void fullDownload()}>
+              Download from AnkiWeb
+            </Button>
           </>
+        }
+      >
+        <p>
+          AnkiWeb and this device both changed in a way Anki can’t merge (usually a note type edited on another
+          device). Pick which copy to keep. A backup is saved first either way.
+        </p>
+        <p>
+          <strong>Download from AnkiWeb</strong> replaces this device’s copy. Reviews done here since the last sync
+          are lost. {status.can_upload ? 'Usually the right choice if you study on other devices.' : ''}
+        </p>
+        {status.can_upload && (
+          <p>
+            <strong>Upload this computer’s copy</strong> replaces AnkiWeb’s. Your other devices then have to download
+            it, and anything they haven’t synced yet is lost.
+          </p>
+        )}
+      </Dialog>
+
+      {/* AnkiWeb has nothing yet and this device has cards. */}
+      <Dialog
+        open={needs === 'server_empty' && !confirmUpload}
+        onClose={dismiss}
+        title="AnkiWeb is empty"
+        actions={
+          status.can_upload ? (
+            <>
+              <Button variant="ghost" onClick={dismiss}>
+                Not now
+              </Button>
+              <Button variant="primary" onClick={() => setConfirmUpload(true)}>
+                Upload to AnkiWeb
+              </Button>
+            </>
+          ) : (
+            <Button variant="primary" onClick={dismiss}>
+              OK
+            </Button>
+          )
+        }
+      >
+        {status.can_upload ? (
+          <p>
+            This AnkiWeb account has no collection yet. Upload the cards on this computer so your other devices can
+            download them?
+          </p>
+        ) : (
+          <p>
+            This AnkiWeb account has no collection yet. Sync from Anki on your computer first. This device never
+            uploads a whole collection, so it can’t overwrite your cards.
+          </p>
         )}
       </Dialog>
 
       <Dialog
-        open={conflictOpen && status.needs === 'server_empty'}
-        onClose={() => setDismissedNeeds('server_empty')}
-        title="AnkiWeb is empty"
+        open={confirmUpload && !!needs}
+        onClose={() => setConfirmUpload(false)}
+        title="Replace AnkiWeb’s collection?"
         actions={
-          <Button variant="primary" onClick={() => setDismissedNeeds('server_empty')}>
-            OK
-          </Button>
+          <>
+            <Button variant="ghost" onClick={() => setConfirmUpload(false)}>
+              Go back
+            </Button>
+            <Button variant="primary" onClick={upload}>
+              Upload and replace
+            </Button>
+          </>
         }
       >
         <p>
-          This AnkiWeb account has no collection yet. Open Anki on the Mac and sync there first. This app never
-          uploads a whole collection, so it can’t overwrite your cards.
+          AnkiWeb’s copy will be replaced with the one on this computer. Your other devices will need to download
+          it, and reviews on them that haven’t synced yet will be lost.
         </p>
+        <p>A backup of this computer’s collection is saved first.</p>
       </Dialog>
 
-      <Dialog open={downloading} onClose={() => {}} blocking title="Downloading from AnkiWeb" actions={null}>
+      <Dialog
+        open={transferring}
+        onClose={() => {}}
+        blocking
+        title={status.phase === 'uploading' ? 'Uploading to AnkiWeb' : 'Downloading from AnkiWeb'}
+        actions={null}
+      >
         <p>{pct === null ? 'Connecting…' : `${mb(status.transferred_bytes ?? 0)} of ${mb(status.total_bytes ?? 0)}`}</p>
         <div className="meter" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct ?? undefined}>
           <div className="meter__fill" style={{ transform: `scaleX(${(pct ?? 0) / 100})` }} />
