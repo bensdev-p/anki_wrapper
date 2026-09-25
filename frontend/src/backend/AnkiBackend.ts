@@ -1,4 +1,9 @@
 import type {
+  CustomStudyInfo,
+  CustomStudyRequest,
+  FilteredDeckForm,
+  FilteredDeckSpec,
+  ImportStatus,
   AddDefaults,
   AddNoteResult,
   DeckName,
@@ -101,6 +106,18 @@ export interface AnkiBackend {
   undoStep(label: string): Promise<void>
   deckOptions(deckId: number): Promise<DeckOptions>
   saveDeckOptions(deckId: number, update: DeckOptionsUpdate): Promise<DeckOptions>
+  customStudyInfo(deckId: number): Promise<CustomStudyInfo>
+  /** Run a custom study option; resolves with the deck to study next. */
+  customStudy(deckId: number, request: CustomStudyRequest): Promise<number>
+  /** A filtered deck to edit; 0 gives Anki's defaults for a new one (optionally with a search). */
+  filteredDeck(deckId: number, search?: string): Promise<FilteredDeckForm>
+  /** Create or update, then build; resolves with the deck id. */
+  saveFilteredDeck(spec: FilteredDeckSpec): Promise<number>
+  rebuildFilteredDeck(deckId: number): Promise<number>
+  emptyFilteredDeck(deckId: number): Promise<void>
+  importStatus(): Promise<ImportStatus>
+  /** Upload a .apkg and start importing it; onProgress gets upload fractions 0–1. */
+  importFile(file: File, onProgress?: (fraction: number) => void): Promise<ImportStatus>
   /** Note types, decks and Anki's starting choices for the Add screen. */
   addDefaults(deckId?: number): Promise<AddDefaults>
   addNote(notetypeId: number, deckId: number, fields: Record<string, string>, tags: string[]): Promise<AddNoteResult>

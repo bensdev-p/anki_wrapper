@@ -1,6 +1,11 @@
 import { BackendError, type AnkiBackend } from './AnkiBackend'
 import { reportOnline } from '../lib/connection'
 import type {
+  CustomStudyInfo,
+  CustomStudyRequest,
+  FilteredDeckForm,
+  FilteredDeckSpec,
+  ImportStatus,
   AddDefaults,
   AddNoteResult,
   DeckName,
@@ -146,6 +151,40 @@ export class HttpBackend implements AnkiBackend {
   deckOptions = (deckId: number) => this.request<DeckOptions>(`/decks/${deckId}/options`)
   saveDeckOptions = (deckId: number, update: DeckOptionsUpdate) =>
     this.request<DeckOptions>(`/decks/${deckId}/options`, { method: 'PUT', body: JSON.stringify(update) })
+  customStudyInfo = (deckId: number) => this.request<CustomStudyInfo>(`/decks/${deckId}/custom-study`)
+  customStudy = async (deckId: number, request: CustomStudyRequest) =>
+    (await this.request<{ deck_id: number }>(`/decks/${deckId}/custom-study`, { method: 'POST', body: JSON.stringify(request) }))
+      .deck_id
+  filteredDeck = (deckId: number, search?: string) =>
+    this.request<FilteredDeckForm>(`/filtered/${deckId}${search ? `?${new URLSearchParams({ search })}` : ''}`)
+  saveFilteredDeck = async (spec: FilteredDeckSpec) =>
+    (await this.request<{ deck_id: number }>('/filtered', { method: 'PUT', body: JSON.stringify(spec) })).deck_id
+  rebuildFilteredDeck = async (deckId: number) =>
+    (await this.request<{ cards: number }>(`/filtered/${deckId}/rebuild`, { method: 'POST' })).cards
+  emptyFilteredDeck = async (deckId: number) => {
+    await this.request(`/filtered/${deckId}/empty`, { method: 'POST' })
+  }
+  importStatus = () => this.request<ImportStatus>('/import')
+  /** XHR rather than fetch: only XHR reports upload progress (big decks take a while). */
+  importFile = (file: File, onProgress?: (fraction: number) => void) =>
+    new Promise<ImportStatus>((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open('POST', `${this.base}/import?${new URLSearchParams({ name: file.name })}`)
+      xhr.setRequestHeader('Content-Type', 'application/octet-stream')
+      xhr.upload.onprogress = (e) => e.lengthComputable && onProgress?.(e.loaded / e.total)
+      xhr.onload = () => {
+        let body: { error?: string; detail?: unknown } & Partial<ImportStatus> = {}
+        try {
+          body = JSON.parse(xhr.responseText)
+        } catch {
+          // non-JSON
+        }
+        if (xhr.status >= 200 && xhr.status < 300) resolve(body as ImportStatus)
+        else reject(new BackendError(xhr.status, body.error ?? 'HttpError', typeof body.detail === 'string' ? body.detail : 'Import failed.'))
+      }
+      xhr.onerror = () => reject(new BackendError(0, 'Network', 'Can’t reach the study server.'))
+      xhr.send(file)
+    })
   addDefaults = (deckId?: number) =>
     this.request<AddDefaults>(`/add${deckId ? `?${new URLSearchParams({ deck_id: String(deckId) })}` : ''}`)
   addNote = (notetypeId: number, deckId: number, fields: Record<string, string>, tags: string[]) =>

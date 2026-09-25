@@ -3271,3 +3271,125 @@
     padding-bottom: calc(var(--sp-16) + 130px + env(safe-area-inset-bottom));
   }
 }
+
+/* Custom study, filtered decks, import */
+.cs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: var(--sp-3);
+}
+.cs__option {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-start;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.cs__option.is-selected {
+  background: var(--accent-soft);
+}
+.cs__option input {
+  margin-top: 4px;
+  accent-color: var(--accent);
+}
+.cs__label {
+  display: block;
+  font-weight: 550;
+  color: var(--text);
+}
+.cs__help {
+  display: block;
+  font-size: var(--fs-xs);
+  color: var(--text-subtle);
+}
+.cs__amount {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+.cs__cram {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+}
+.cs__tags .chips {
+  flex-wrap: wrap;
+  max-height: 140px;
+  overflow-y: auto;
+  margin-top: var(--sp-2);
+}
+.fd {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.fd__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  font-size: var(--fs-sm);
+  font-weight: 550;
+  color: var(--text-muted);
+}
+.fd__field--inline {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--sp-2);
+  font-weight: 500;
+}
+.fd__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.fd__switch {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+.meter--indeterminate .meter__fill {
+  width: 35%;
+  animation: meter-slide 1.2s var(--ease-out) infinite;
+}
+@keyframes meter-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .meter--indeterminate .meter__fill {
+    animation: none;
+    width: 100%;
+    opacity: 0.5;
+  }
+}
+@media (max-width: 640px) {
+  .cs__amount .num__input,
+  .fd .num__input {
+    font-size: 16px;
+  }
+}
+@media (max-width: 900px) {
+  .panel__toolbar--decks .btn__label--wide {
+    display: none;
+  }
+}
+.browse-status__study {
+  margin: 0 auto 0 var(--sp-3);
+}
+.cs__cram .select {
+  align-self: flex-start;
+  max-width: 100%;
+}

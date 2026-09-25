@@ -404,3 +404,64 @@ export interface AddNoteResult {
   /** Matches another note's first field (added anyway, as in Anki). */
   duplicate: boolean
 }
+
+// Custom study, filtered decks, importing (mirror service/types.py)
+
+export interface CustomStudyInfo {
+  deck_id: number
+  deck_name: string
+  available_new: number
+  available_review: number
+  available_new_in_children: number
+  available_review_in_children: number
+  extend_new: number
+  extend_review: number
+  tags: string[]
+}
+
+export type CustomStudyKind = 'new' | 'review' | 'forgot' | 'ahead' | 'preview' | 'cram'
+export type CramKind = 'due' | 'new' | 'review' | 'all'
+
+export interface CustomStudyRequest {
+  kind: CustomStudyKind
+  amount: number
+  cram_kind?: CramKind
+  tags_include?: string[]
+  tags_exclude?: string[]
+}
+
+export interface FilteredDeckSpec {
+  /** 0 for a new filtered deck. */
+  id: number
+  name: string
+  search: string
+  limit: number
+  order: number
+  reschedule: boolean
+  search2: string | null
+  limit2: number
+  order2: number
+}
+
+export interface FilteredDeckForm {
+  deck: FilteredDeckSpec
+  /** Anki's names for the order choices (index = order number). */
+  order_labels: string[]
+}
+
+export interface ImportSummary {
+  new: number
+  updated: number
+  duplicate: number
+  conflicting: number
+  skipped: number
+  found: number
+}
+
+export interface ImportStatus {
+  phase: 'idle' | 'importing'
+  filename: string | null
+  progress: string | null
+  result: ImportSummary | null
+  error: string | null
+}

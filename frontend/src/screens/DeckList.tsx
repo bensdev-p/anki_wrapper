@@ -1,13 +1,18 @@
-import { ArrowRight, ChevronRight, FolderPlus, LogIn, Plus, Search, X } from 'lucide-react'
+import { ArrowRight, ChevronRight, Filter, FolderPlus, LogIn, Plus, Search, Upload, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useBackend } from '../backend/context'
 import type { CollectionInfo, Counts, DeckNode } from '../backend/types'
 import { Button } from '../components/Button'
 import { DeckDialogs, type DeckDialogState } from '../components/DeckDialogs'
+import { CustomStudyDialog } from '../components/CustomStudyDialog'
 import { DeckMenu, type DeckAction } from '../components/DeckMenu'
+import { FilteredDeckDialog, type FilteredDialogState } from '../components/FilteredDeckDialog'
+import { useToast } from '../components/Toast'
+import { BackendError } from '../backend/AnkiBackend'
 import { Kbd } from '../components/Kbd'
 import { SignInDialog } from '../components/SignInDialog'
 import { openAddNote } from '../lib/addNote'
+import { openImport } from '../lib/importer'
 import { useDecks } from '../lib/decks'
 import { navigate } from '../lib/router'
 import { load, save } from '../lib/storage'
@@ -82,6 +87,9 @@ export function DeckList() {
   const [collapsed, setCollapsed] = useState<Record<number, boolean>>(() => load('collapsed', {}))
   const [signInOpen, setSignInOpen] = useState(false)
   const [dialog, setDialog] = useState<DeckDialogState>(null)
+  const [customFor, setCustomFor] = useState<DeckNode | null>(null)
+  const [filtered, setFiltered] = useState<FilteredDialogState | null>(null)
+  const toast = useToast()
   const { status: sync } = useSync()
   const filterRef = useRef<HTMLInputElement>(null)
 
@@ -124,7 +132,18 @@ export function DeckList() {
     else if (action === 'options') navigate({ name: 'options', deckId: deck.id })
     else if (action === 'rename') setDialog({ kind: 'rename', deck })
     else if (action === 'subdeck') setDialog({ kind: 'create', prefix: `${deck.full_name}::` })
-    else setDialog({ kind: 'delete', deck })
+    else if (action === 'custom') setCustomFor(deck)
+    else if (action === 'edit-filtered') setFiltered({ deckId: deck.id })
+    else if (action === 'rebuild' || action === 'empty') {
+      const op = action === 'rebuild' ? backend.rebuildFilteredDeck(deck.id) : backend.emptyFilteredDeck(deck.id).then(() => 0)
+      op.then(
+        (n) => {
+          toast(action === 'rebuild' ? `Rebuilt “${deck.name}”: ${n} cards.` : `Emptied “${deck.name}”. Its cards are back in their decks.`, 'info')
+          void reload()
+        },
+        (err) => toast(err instanceof BackendError ? err.message : 'Something went wrong.', 'error'),
+      )
+    } else setDialog({ kind: 'delete', deck })
   }
 
   // "A" adds a card, as in Anki's main window.
@@ -230,9 +249,14 @@ export function DeckList() {
                 Sign in with your AnkiWeb account to bring over your decks and reviews. Rounds keeps them in sync with
                 Anki on your other devices.
               </p>
-              <Button variant="primary" onClick={() => setSignInOpen(true)}>
-                <LogIn size={16} /> Sign in to AnkiWeb
-              </Button>
+              <div className="settings-card__actions">
+                <Button variant="primary" onClick={() => setSignInOpen(true)}>
+                  <LogIn size={16} /> Sign in to AnkiWeb
+                </Button>
+                <Button variant="secondary" onClick={openImport}>
+                  <Upload size={16} /> Import a deck file
+                </Button>
+              </div>
               <SignInDialog open={signInOpen} onClose={() => setSignInOpen(false)} />
             </>
           ) : (
@@ -273,6 +297,10 @@ export function DeckList() {
               <Kbd className="filter__kbd">/</Kbd>
             )}
           </label>
+          <Button variant="secondary" onClick={() => setFiltered({ deckId: 0 })} title="New filtered deck (study cards matching a search)">
+            <Filter size={15} />
+            <span className="btn__label btn__label--wide">Filtered deck</span>
+          </Button>
           <Button variant="secondary" onClick={() => setDialog({ kind: 'create', prefix: '' })} title="New deck">
             <FolderPlus size={15} />
             <span className="btn__label">New deck</span>
@@ -323,6 +351,8 @@ export function DeckList() {
         onClose={() => setDialog(null)}
         onChanged={() => void reload()}
       />
+      <CustomStudyDialog deck={customFor} onClose={() => setCustomFor(null)} />
+      <FilteredDeckDialog state={filtered} onClose={() => setFiltered(null)} onSaved={() => void reload()} />
     </main>
   )
 }

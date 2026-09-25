@@ -1,4 +1,4 @@
-import { Check, Copy, LogIn, RefreshCw, Smartphone } from 'lucide-react'
+import { Check, Copy, LogIn, RefreshCw, Smartphone, Upload } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useBackend } from '../backend/context'
 import type { CollectionInfo, SharingStatus } from '../backend/types'
@@ -8,6 +8,7 @@ import { APP_NAME } from '../components/Logo'
 import { SignInDialog } from '../components/SignInDialog'
 import { Switch } from '../components/Switch'
 import { useToast } from '../components/Toast'
+import { openImport } from '../lib/importer'
 import { relativeTime, useSync } from '../lib/sync'
 
 export function Settings() {
@@ -32,6 +33,18 @@ export function Settings() {
           </p>
         </section>
       )}
+      <section className="settings-card">
+        <h2>Import</h2>
+        <p className="settings-card__text">
+          Add a shared deck from a file (.apkg), e.g. one downloaded from AnkiWeb’s shared decks. Cards you already have are
+          left as they are.
+        </p>
+        <div className="settings-card__actions">
+          <Button variant="secondary" onClick={openImport}>
+            <Upload size={15} /> Import a deck file…
+          </Button>
+        </div>
+      </section>
       <section className="settings-card">
         <h2>About</h2>
         <p className="settings-card__text">

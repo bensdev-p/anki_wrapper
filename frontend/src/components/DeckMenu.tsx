@@ -1,8 +1,8 @@
-import { FolderPlus, MoreHorizontal, PenLine, Plus, SlidersHorizontal, Trash2 } from 'lucide-react'
+import { Filter, FolderPlus, GraduationCap, MoreHorizontal, PenLine, Plus, RefreshCw, SlidersHorizontal, Trash2, Undo2 } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { DeckNode } from '../backend/types'
 
-export type DeckAction = 'add' | 'options' | 'rename' | 'subdeck' | 'delete'
+export type DeckAction = 'add' | 'options' | 'custom' | 'rename' | 'subdeck' | 'delete' | 'edit-filtered' | 'rebuild' | 'empty'
 
 function Item({ icon, label, danger, onClick }: { icon: ReactNode; label: string; danger?: boolean; onClick(): void }) {
   return (
@@ -56,6 +56,10 @@ export function DeckMenu({ deck, onAction }: { deck: DeckNode; onAction(action: 
         <div className={`menu deck-menu ${up ? 'deck-menu--up' : ''}`} role="menu" aria-label={deck.name}>
           {!deck.filtered && <Item icon={<Plus size={15} />} label="Add cards" onClick={() => run('add')} />}
           {!deck.filtered && <Item icon={<SlidersHorizontal size={15} />} label="Options" onClick={() => run('options')} />}
+          {!deck.filtered && <Item icon={<GraduationCap size={15} />} label="Custom study…" onClick={() => run('custom')} />}
+          {deck.filtered && <Item icon={<Filter size={15} />} label="Edit filter…" onClick={() => run('edit-filtered')} />}
+          {deck.filtered && <Item icon={<RefreshCw size={15} />} label="Rebuild" onClick={() => run('rebuild')} />}
+          {deck.filtered && <Item icon={<Undo2 size={15} />} label="Empty" onClick={() => run('empty')} />}
           <Item icon={<PenLine size={15} />} label="Rename or move…" onClick={() => run('rename')} />
           {!deck.filtered && <Item icon={<FolderPlus size={15} />} label="New subdeck…" onClick={() => run('subdeck')} />}
           <div className="menu__sep" />

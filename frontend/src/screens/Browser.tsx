@@ -8,6 +8,7 @@ import { Button } from '../components/Button'
 import { CardFrame } from '../components/card/CardFrame'
 import { CardInfoPanel } from '../components/CardInfoPanel'
 import { Dialog } from '../components/Dialog'
+import { FilteredDeckDialog, type FilteredDialogState } from '../components/FilteredDeckDialog'
 import { NoteEditor } from '../components/editor/NoteEditor'
 import { Sheet } from '../components/Sheet'
 import { useToast } from '../components/Toast'
@@ -88,6 +89,7 @@ export function Browser({ initialQuery }: { initialQuery: string }) {
 
   const data = useBrowse(query, sort, reverse)
   const total = data.total ?? 0
+  const [filtered, setFiltered] = useState<FilteredDialogState | null>(null)
 
   // Selection: explicit ids, or "every card matching".
   const [selected, setSelected] = useState<Set<number>>(new Set())
@@ -344,6 +346,11 @@ export function Browser({ initialQuery }: { initialQuery: string }) {
             <span>
               <strong>{fmt(total)}</strong> {total === 1 ? 'card' : 'cards'}
             </span>
+          )}
+          {query && total > 0 && (
+            <button className="link browse-status__study" onClick={() => setFiltered({ deckId: 0, search: query })} title="Make a filtered deck from this search">
+              Study these
+            </button>
           )}
           {narrow && (
             <button className="link" onClick={() => setSelectMode((m) => !m)}>
@@ -602,6 +609,7 @@ export function Browser({ initialQuery }: { initialQuery: string }) {
           if (focusRow) backend.renderCard(focusRow.card_id).then((r) => (setPreview(r), setPreviewKey((k) => k + 1)))
         }}
       />
+      <FilteredDeckDialog state={filtered} onClose={() => setFiltered(null)} onSaved={() => {}} />
     </main>
   )
 }
