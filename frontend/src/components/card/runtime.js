@@ -3,22 +3,6 @@
 // document; #qa innerHTML is swapped per side, and card <script>s re-run.
 ;(function () {
   'use strict'
-
-  // "Match theme" card style: the card sits on the app's surface. Only the
-  // page background and base text color are taken over; everything else
-  // (cloze colors, fonts, layout, images) stays as the deck styles it.
-  // Loaded after the note type's CSS so it wins over .card { background }.
-  var BLEND_CSS = [
-    'html, body, body.card, .card, #qa { background-color: transparent !important; }',
-    'body, body.card, .card { color: var(--fg) !important; }',
-    'hr { background-color: var(--rounds-border-strong) !important; }',
-    'input#typeans { background: var(--rounds-hover) !important; color: var(--fg) !important; border-color: var(--rounds-border-strong) !important; }',
-    'input#typeans:focus { outline: none; border-color: var(--rounds-accent) !important; box-shadow: 0 0 0 3px var(--rounds-accent-soft); }',
-    '.replay-button svg circle { fill: var(--rounds-hover) !important; stroke: var(--rounds-border-strong) !important; }',
-    '.replay-button svg path { fill: var(--fg) !important; }',
-    'html { scrollbar-color: var(--rounds-border-strong) transparent; }',
-    '::selection { background: var(--rounds-accent-soft); }',
-  ].join('\n')
   var qa = document.getElementById('qa')
   var ntCss = document.getElementById('notetype-css')
   var baseClass = ''
@@ -158,13 +142,9 @@
       }
     } else if (msg.type === 'theme') {
       themeClass = msg.bodyClass
-      var root = document.documentElement
-      root.style.setProperty('--canvas', msg.canvas)
-      root.style.setProperty('--fg', msg.fg)
-      for (var k in msg.vars || {}) root.style.setProperty('--' + k, msg.vars[k])
-      root.style.colorScheme = msg.night ? 'dark' : 'light'
-      root.classList.toggle('rounds-blend', !!msg.blend)
-      document.getElementById('theme-blend').textContent = msg.blend ? BLEND_CSS : ''
+      document.documentElement.style.setProperty('--canvas', msg.canvas)
+      document.documentElement.style.setProperty('--fg', msg.fg)
+      document.documentElement.style.colorScheme = msg.night ? 'dark' : 'light'
       applyBodyClass()
     }
   })

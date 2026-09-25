@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import type { RenderedCard } from '../../backend/types'
 import type { Theme } from '../../themes/themes'
-import { useCardStyle } from '../../lib/cardStyle'
 import { isApple, isTouch, openExternal } from '../../lib/platform'
 import baseCss from './card-base.css?raw'
 import runtimeJs from './runtime.js?raw'
@@ -83,7 +82,6 @@ function buildSrcDoc(mediaBaseUrl: string): string {
 <script>window.__roundsLocal = ${JSON.stringify(loadCardStorage()).replace(/</g, '\\u003c')}</script>
 <style>${baseCss}</style>
 <style id="notetype-css"></style>
-<style id="theme-blend"></style>
 </head><body><div id="qa"></div>
 <script>${runtimeJs.replace(/<\/script/gi, '<\\/script')}</script>
 </body></html>`
@@ -134,32 +132,18 @@ export function CardFrame({ renderKey, rendered, side, theme, mediaBaseUrl, scro
     return () => window.removeEventListener('message', onMessage)
   }, [])
 
-  const cardStyle = useCardStyle()
-
-  // Theme: Anki's night-mode classes + the --canvas/--fg its CSS uses, and
-  // (in "match theme" style) the tokens the card's own chrome is drawn with.
+  // Theme: Anki's night-mode classes + the --canvas/--fg its CSS uses.
   useEffect(() => {
     const night = theme.kind === 'dark'
-    const t = theme.tokens
     send({
       type: 'theme',
       night,
-      blend: cardStyle === 'theme',
       bodyClass: [PLATFORM_CLASS, night ? 'nightMode night_mode' : ''].join(' ').trim(),
-      canvas: t['card-canvas'],
-      fg: t['card-fg'],
-      vars: {
-        'rounds-muted': t['text-muted'],
-        'rounds-subtle': t['text-subtle'],
-        'rounds-border': t.border,
-        'rounds-border-strong': t['border-strong'],
-        'rounds-accent': t.accent,
-        'rounds-accent-soft': t['accent-soft'],
-        'rounds-hover': t['surface-hover'],
-      },
+      canvas: theme.tokens['card-canvas'],
+      fg: theme.tokens['card-fg'],
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [theme, cardStyle])
+  }, [theme])
 
   useEffect(() => {
     if (!rendered) return

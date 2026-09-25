@@ -98,13 +98,6 @@ the Pi server mode stays supported (and stays download-only).
   - `pycmd('ans'|'easeN')`.
   - http(s) links open in a new tab via the parent.
   - The only network exception is `connect-src https://en.wikipedia.org`.
-  Card style (Settings → Appearance, `lib/cardStyle.ts`): "Match theme" (default)
-  loads a small stylesheet after the note type's CSS that sets only the page
-  background (transparent, over the theme's surface) and base text color, plus
-  the card chrome (hr, type-answer box, replay buttons); deck content styling
-  is untouched. "As the deck designed it" is Anki's exact rendering. The
-  iframe element's `color-scheme` must match the card document's, or browsers
-  paint an opaque backdrop.
 
 ## Frontend conventions
 

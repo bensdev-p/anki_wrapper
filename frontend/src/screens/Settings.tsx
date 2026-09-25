@@ -9,7 +9,6 @@ import { APP_NAME } from '../components/Logo'
 import { SignInDialog } from '../components/SignInDialog'
 import { Switch } from '../components/Switch'
 import { useToast } from '../components/Toast'
-import { setCardStyle, useCardStyle } from '../lib/cardStyle'
 import { openImport } from '../lib/importer'
 import { useTheme } from '../themes/ThemeProvider'
 import { EDITOR_FAMILIES } from '../themes/editorThemes'
@@ -423,7 +422,6 @@ function AppearanceSection() {
           Match system light/dark
         </label>
       </div>
-      <CardStyleRow />
       <div className="theme-filter">
         <div className="chips" role="radiogroup" aria-label="Show">
           {(['all', 'dark', 'light'] as const).map((k) => (
@@ -458,37 +456,5 @@ function AppearanceSection() {
         </div>
       ))}
     </section>
-  )
-}
-
-function CardStyleRow() {
-  const style = useCardStyle()
-  const options = [
-    { id: 'theme' as const, label: 'Match theme', hint: 'Cards take the theme’s background and text colors' },
-    { id: 'deck' as const, label: 'As the deck designed it', hint: 'Exactly as in Anki: the deck’s own colors' },
-  ]
-  return (
-    <div className="card-style">
-      <span className="card-style__label">Card style</span>
-      <div className="card-style__options" role="radiogroup" aria-label="Card style">
-        {options.map((o) => (
-          <button
-            key={o.id}
-            role="radio"
-            aria-checked={style === o.id}
-            className="card-style__option"
-            onClick={() => setCardStyle(o.id)}
-          >
-            <span className={`card-style__preview card-style__preview--${o.id}`} aria-hidden="true">
-              <span />
-            </span>
-            <span className="card-style__text">
-              <span>{o.label}</span>
-              <span className="card-style__hint">{o.hint}</span>
-            </span>
-          </button>
-        ))}
-      </div>
-    </div>
   )
 }

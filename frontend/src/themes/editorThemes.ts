@@ -144,8 +144,8 @@ export function build(
       hard: p.orange,
       good: p.green,
       easy: p.blue,
-      'card-canvas': p.surface,
-      'card-fg': p.text,
+      'card-canvas': dark ? p.surface : '#ffffff',
+      'card-fg': dark ? p.text : mix(p.text, '#000000', 0.2),
       'shadow-sm': `0 1px 2px ${shadow} ${dark ? 0.4 : 0.06})`,
       'shadow-md': dark
         ? '0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 20px rgba(0, 0, 0, 0.3)'
