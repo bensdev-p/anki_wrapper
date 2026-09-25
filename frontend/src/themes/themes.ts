@@ -7,6 +7,8 @@
  * body classes inside the card iframe, which existing decks already style.
  */
 
+import { build, EDITOR_PALETTES } from './editorThemes'
+
 export type TokenName =
   // surfaces
   | 'bg'
@@ -348,7 +350,17 @@ const highContrast: Theme = {
   },
 }
 
-export const THEMES: Theme[] = [light, dark, sepia, dusk, highContrast]
+/** Rounds' own themes, then the editor-inspired ones. */
+export const CORE_THEME_IDS = ['light', 'dark', 'sepia', 'dusk', 'high-contrast']
+
+export const THEMES: Theme[] = [
+  light,
+  dark,
+  sepia,
+  dusk,
+  highContrast,
+  ...EDITOR_PALETTES.map((t) => build(t.id, t.name, t.description, t.kind, t.palette, FLAGS)),
+]
 
 export const SYSTEM = 'system'
 export type ThemeChoice = typeof SYSTEM | string

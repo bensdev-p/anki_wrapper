@@ -77,8 +77,9 @@ incoming connections, choose **Allow**.
 
 ---
 
-The rest of this page is for developers, and for running Rounds on a Raspberry
-Pi as a home server (the original setup).
+The rest of this page is for developers. Rounds can also run as a small home
+server (e.g. on a Raspberry Pi 5), which is how it's developed and tested away
+from a laptop; the steps below cover that setup.
 
 - **Backend:** Python + FastAPI on the official headless [`anki`](https://pypi.org/project/anki/)
   package (Anki's Rust core), pinned to `anki==26.9.2`.
@@ -251,10 +252,10 @@ the API serve the UI:
 HOST=0.0.0.0 ./scripts/run_backend.sh      # UI + API on http://<pi>.local:8000
 ```
 
-### Run it permanently (recommended on the Pi)
+### Run it permanently (server setup)
 
 ```bash
-./scripts/install_pi.sh             # her synced collection (after sync_setup.py)
+./scripts/install_pi.sh             # the synced collection (after sync_setup.py)
 ./scripts/install_pi.sh --sample    # or the sample collection, to try it out
 ```
 
@@ -303,11 +304,12 @@ Rebuild it at any time (e.g. after studying through it):
 .venv/bin/python scripts/make_sample_collection.py --force
 ```
 
-## Syncing with AnkiWeb (her real collection)
+## Syncing with AnkiWeb (server setup)
 
-The Pi can join her MacBook and iMac as **one more Anki device**. It keeps its own
-collection in `data/synced/` and syncs reviews both ways through AnkiWeb, just
-like Anki desktop.
+A Rounds server (e.g. a development Pi) can join an AnkiWeb account as **one
+more Anki device**. It keeps its own collection in `data/synced/` and syncs
+reviews both ways through AnkiWeb, just like Anki desktop. For development, use
+a test account or Anki's local sync server rather than a real study collection.
 
 One-time setup, **on the Pi** (stop the app first):
 

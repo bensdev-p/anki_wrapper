@@ -1,8 +1,10 @@
 # CLAUDE.md
 
-A modern study client on Anki's real engine (`anki` PyPI package). The user
-studies medicine with a 100k+ card AnKing collection. **Her data matters more
-than any feature.**
+A modern study client on Anki's real engine (`anki` PyPI package), shipped as a
+desktop app for medical students with 100k+ card AnKing collections. **Users'
+study data matters more than any feature.** The Raspberry Pi is the
+developer's own development/home-server machine, not a student's study device;
+the Pi server mode stays supported (and stays download-only).
 
 ## Hard safety rules
 
@@ -16,8 +18,8 @@ than any feature.**
 - Real cards reach the app as an AnkiWeb-synced collection (`<data>/synced/`,
   see below) or as a **copy** of a `.colpkg` export
   (`scripts/import_colpkg.py` → `data/demo/`; the `.colpkg` is only read).
-- **AnkiWeb sync rules.** The Pi and the desktop app are each one more Anki
-  device next to her MacBook and iMac.
+- **AnkiWeb sync rules.** A Rounds install (desktop app, or the Pi server) is
+  one more Anki device on the user's AnkiWeb account.
   - Only `<data>/synced/collection.anki2` may sync (`safety.is_sync_collection`).
     The sample and demo copies never sync.
   - **Full upload** (replacing AnkiWeb's copy) is allowed only in the desktop
@@ -100,7 +102,12 @@ than any feature.**
 ## Frontend conventions
 
 - Colors come only from theme tokens (`var(--token)`) in `src/themes/themes.ts`.
-  Every theme defines every token. Spacing, type and motion tokens are in
+  Every theme defines every token. Editor-inspired themes live in
+  `src/themes/editorThemes.ts` as a small signature palette each; `build()`
+  derives the tokens. After adding or changing a theme, run
+  `node frontend/scripts/check_themes.mjs <dataviz validate_palette.js>`: text
+  contrast (text 7:1, muted 4.5:1, answer/count colors 3:1) and the chart ramps
+  must pass for every theme. Spacing, type and motion tokens are in
   `src/styles/base.css`. No hard-coded colors in components (the card iframe's
   Anki compatibility CSS is the exception).
 - Chart colors are theme tokens too (`chart-1`, `mat-1..4`, `heat-0..4`,

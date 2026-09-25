@@ -1,7 +1,7 @@
 import { Check, Monitor, Palette } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTheme } from '../themes/ThemeProvider'
-import { SYSTEM, type Theme } from '../themes/themes'
+import { CORE_THEME_IDS, SYSTEM, type Theme } from '../themes/themes'
 import { Button } from './Button'
 
 export function ThemeSwatch({ theme }: { theme: Theme }) {
@@ -52,8 +52,7 @@ export function ThemeMenu() {
         <Palette size={18} strokeWidth={1.8} />
       </Button>
       {open && (
-        <div className="menu" role="menu" aria-label="Theme">
-          <div className="menu__label">Theme</div>
+        <div className="menu theme-menu" role="menu" aria-label="Theme">
           <button role="menuitemradio" aria-checked={choice === SYSTEM} className="menu__item" onClick={() => pick(SYSTEM)}>
             <span className="swatch swatch--icon">
               <Monitor size={14} />
@@ -64,21 +63,29 @@ export function ThemeMenu() {
             </span>
             {choice === SYSTEM && <Check size={16} className="menu__check" />}
           </button>
-          {themes.map((t) => (
-            <button
-              key={t.id}
-              role="menuitemradio"
-              aria-checked={choice === t.id}
-              className="menu__item"
-              onClick={() => pick(t.id)}
-            >
-              <ThemeSwatch theme={t} />
-              <span className="menu__text">
-                <span>{t.name}</span>
-                <span className="menu__hint">{t.description}</span>
-              </span>
-              {choice === t.id && <Check size={16} className="menu__check" />}
-            </button>
+          {[
+            ['Rounds', themes.filter((t) => CORE_THEME_IDS.includes(t.id))],
+            ['Editor themes', themes.filter((t) => !CORE_THEME_IDS.includes(t.id))],
+          ].map(([label, list]) => (
+            <div key={label as string} role="group" aria-label={label as string}>
+              <div className="menu__label">{label as string}</div>
+              {(list as Theme[]).map((t) => (
+                <button
+                  key={t.id}
+                  role="menuitemradio"
+                  aria-checked={choice === t.id}
+                  className="menu__item"
+                  onClick={() => pick(t.id)}
+                >
+                  <ThemeSwatch theme={t} />
+                  <span className="menu__text">
+                    <span>{t.name}</span>
+                    <span className="menu__hint">{t.description}</span>
+                  </span>
+                  {choice === t.id && <Check size={16} className="menu__check" />}
+                </button>
+              ))}
+            </div>
           ))}
         </div>
       )}

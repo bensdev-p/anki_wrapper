@@ -10,6 +10,8 @@ import { SignInDialog } from '../components/SignInDialog'
 import { Switch } from '../components/Switch'
 import { useToast } from '../components/Toast'
 import { openImport } from '../lib/importer'
+import { useTheme } from '../themes/ThemeProvider'
+import { CORE_THEME_IDS, SYSTEM, type Theme } from '../themes/themes'
 import { inDesktopWindow, openExternal, openFolder } from '../lib/platform'
 import { relativeTime, useSync } from '../lib/sync'
 
@@ -25,6 +27,7 @@ export function Settings() {
     <main className="page page--settings">
       <h1 className="settings__title">Settings</h1>
       <AccountSection />
+      <AppearanceSection />
       {info?.desktop && !info.remote && <PhoneSection />}
       {info?.remote && (
         <section className="settings-card">
@@ -359,6 +362,59 @@ function BackupsSection({ canRestore }: { canRestore: boolean }) {
           and your other devices.
         </p>
       </Dialog>
+    </section>
+  )
+}
+
+function ThemeCard({ theme, selected, onPick }: { theme: Theme; selected: boolean; onPick(): void }) {
+  const t = theme.tokens
+  return (
+    <button className="theme-card" role="radio" aria-checked={selected} onClick={onPick} title={theme.description}>
+      <span className="theme-card__preview" style={{ background: t.bg, borderColor: t.border }} aria-hidden="true">
+        <span className="theme-card__panel" style={{ background: t.surface, borderColor: t.border }}>
+          <span className="theme-card__line" style={{ background: t.text }} />
+          <span className="theme-card__line theme-card__line--short" style={{ background: t['text-subtle'] }} />
+          <span className="theme-card__dots">
+            {(['again', 'hard', 'good', 'easy'] as const).map((k) => (
+              <span key={k} style={{ background: t[k] }} />
+            ))}
+          </span>
+        </span>
+        <span className="theme-card__accent" style={{ background: t.accent }} />
+      </span>
+      <span className="theme-card__name">{theme.name}</span>
+    </button>
+  )
+}
+
+function AppearanceSection() {
+  const { choice, themes, setChoice } = useTheme()
+  const groups: [string, Theme[]][] = [
+    ['Rounds', themes.filter((t) => CORE_THEME_IDS.includes(t.id))],
+    ['Editor themes', themes.filter((t) => !CORE_THEME_IDS.includes(t.id))],
+  ]
+  return (
+    <section className="settings-card">
+      <div className="settings-card__head">
+        <div>
+          <h2>Appearance</h2>
+          <p className="settings-card__text">Cards follow along: dark themes turn on your decks’ night mode.</p>
+        </div>
+        <label className="options__children">
+          <input type="checkbox" checked={choice === SYSTEM} onChange={(e) => setChoice(e.target.checked ? SYSTEM : themes[0].id)} />
+          Match system light/dark
+        </label>
+      </div>
+      {groups.map(([label, list]) => (
+        <div key={label} className="theme-grid__group">
+          <h3 className="theme-grid__label">{label}</h3>
+          <div className="theme-grid" role="radiogroup" aria-label={label}>
+            {list.map((t) => (
+              <ThemeCard key={t.id} theme={t} selected={choice === t.id} onPick={() => setChoice(t.id)} />
+            ))}
+          </div>
+        </div>
+      ))}
     </section>
   )
 }
