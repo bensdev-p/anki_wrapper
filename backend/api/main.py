@@ -30,6 +30,7 @@ from service.types import (
     AddDefaults,
     AddNoteResult,
     AnswerResult,
+    BackupInfo,
     CustomStudyInfo,
     DeckName,
     DeckOptions,
@@ -49,6 +50,7 @@ from service.types import (
 
 from .host import CollectionHost
 from .importer import ImportManager, ImportStatus
+from .updates import UpdateChecker, UpdateInfo
 from .sharing import COOKIE, COOKIE_MAX_AGE, PairingLocked, Sharing, SharingStatus
 from .sync_manager import AuthFailed, SyncManager, SyncStatus
 
@@ -89,6 +91,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.host = host
     app.state.sync = SyncManager(host)
     app.state.importer = ImportManager(host)
+    app.state.updates = UpdateChecker()
     # Phones on the home network: a desktop-app feature (the Pi is on the network anyway).
     app.state.sharing = Sharing(synced_dir().parent, app) if desktop_mode() else None  # the app's data folder
     if app.state.sharing:
@@ -541,6 +544,62 @@ async def import_start(request: Request, name: str = Query(..., min_length=1, ma
     except PermissionError as err:
         raise HTTPException(409, str(err)) from err
     return importer.status()
+
+
+# Backups and updates
+##########################################################################
+
+
+def _backup_folder(request: Request) -> Path:
+    return _host(request).path.parent / "backups"
+
+
+@app.get("/api/backups")
+async def backups(request: Request) -> list[BackupInfo]:
+    return service.backups.list_backups(_backup_folder(request))
+
+
+@dataclass
+class BackupResult:
+    created: bool
+    """False when nothing changed since the last backup."""
+
+
+@app.post("/api/backups")
+async def backup_now(request: Request) -> BackupResult:
+    folder = _backup_folder(request)
+    return BackupResult(await _host(request).run(lambda col: service.backups.backup_now(col, folder)))
+
+
+class RestoreBody(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+
+
+@app.post("/api/backups/restore")
+async def restore_backup(request: Request, body: RestoreBody) -> BackupResult:
+    """Replace the collection with a backup (desktop app, on the computer itself).
+
+    Like Anki desktop's "Revert to backup", the next sync then asks whether to
+    upload this copy or download AnkiWeb's. The Pi can't restore: it never
+    uploads, so a restore there would just be replaced by AnkiWeb's copy.
+    """
+    _require_local(request)
+    if not desktop_mode():
+        raise HTTPException(409, "Restoring backups is done in the desktop app.")
+    manager: SyncManager = request.app.state.sync
+    if manager.phase != "idle":
+        raise HTTPException(409, "Wait for the sync to finish.")
+    folder = _backup_folder(request)
+    await _host(request).run(lambda col: service.backups.restore_backup(col, folder, body.name))
+    _stats_cache.clear()
+    _browse_cache.clear()
+    return BackupResult(True)
+
+
+@app.get("/api/update")
+async def update_check(request: Request) -> UpdateInfo:
+    """Is a newer desktop app out? (Only asked by the desktop app.)"""
+    return await request.app.state.updates.info()
 
 
 # Adding notes

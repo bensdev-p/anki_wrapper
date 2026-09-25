@@ -3393,3 +3393,46 @@
   align-self: flex-start;
   max-width: 100%;
 }
+
+/* Backups & updates */
+.backups {
+  margin: var(--sp-4) 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--border);
+}
+.backups__row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-sm);
+}
+.backups__when {
+  flex: 1;
+  min-width: 0;
+}
+.backups__size {
+  color: var(--text-subtle);
+}
+.backups__row .link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.backups__more {
+  margin-top: var(--sp-3);
+  font-size: var(--fs-sm);
+}
+.update-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+}

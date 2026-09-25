@@ -7,6 +7,7 @@ export const modKey = isApple ? '⌘' : 'Ctrl\u2009'
 
 interface DesktopApi {
   open_external(url: string): Promise<void>
+  open_folder(which: 'data' | 'backups' | 'logs'): Promise<void>
 }
 declare global {
   interface Window {
@@ -23,4 +24,9 @@ export function openExternal(url: string): void {
   const api = window.pywebview?.api
   if (api) void api.open_external(url)
   else window.open(url, '_blank', 'noopener,noreferrer')
+}
+
+/** Show one of the app's folders in Finder / Explorer (desktop window only). */
+export function openFolder(which: 'data' | 'backups' | 'logs'): void {
+  void window.pywebview?.api?.open_folder(which)
 }

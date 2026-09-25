@@ -1,7 +1,8 @@
-import { Check, Copy, LogIn, RefreshCw, Smartphone, Upload } from 'lucide-react'
+import { Check, Copy, Download, FolderOpen, LogIn, RefreshCw, RotateCcw, Save, Smartphone, Upload } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useBackend } from '../backend/context'
-import type { CollectionInfo, SharingStatus } from '../backend/types'
+import { BackendError } from '../backend/AnkiBackend'
+import type { BackupInfo, CollectionInfo, SharingStatus, UpdateInfo } from '../backend/types'
 import { Button } from '../components/Button'
 import { Dialog } from '../components/Dialog'
 import { APP_NAME } from '../components/Logo'
@@ -9,6 +10,7 @@ import { SignInDialog } from '../components/SignInDialog'
 import { Switch } from '../components/Switch'
 import { useToast } from '../components/Toast'
 import { openImport } from '../lib/importer'
+import { inDesktopWindow, openExternal, openFolder } from '../lib/platform'
 import { relativeTime, useSync } from '../lib/sync'
 
 export function Settings() {
@@ -45,12 +47,21 @@ export function Settings() {
           </Button>
         </div>
       </section>
+      {info && !info.remote && !info.is_sample && <BackupsSection canRestore={info.desktop} />}
       <section className="settings-card">
         <h2>About</h2>
         <p className="settings-card__text">
           {APP_NAME} {info?.version ?? ''} studies with Anki’s own engine, so reviews, scheduling and sync behave exactly
           as in Anki. Your cards stay on your computer and in your AnkiWeb account.
         </p>
+        {info?.desktop && !info.remote && <UpdateRow />}
+        {inDesktopWindow() && (
+          <div className="settings-card__actions">
+            <Button variant="ghost" size="sm" onClick={() => openFolder('logs')}>
+              <FolderOpen size={14} /> Show log files
+            </Button>
+          </div>
+        )}
       </section>
     </main>
   )
@@ -210,6 +221,143 @@ function PhoneSection() {
         }
       >
         <p>Every connected phone is signed out and needs the new code to connect again.</p>
+      </Dialog>
+    </section>
+  )
+}
+
+function UpdateRow() {
+  const backend = useBackend()
+  const [update, setUpdate] = useState<UpdateInfo | null>(null)
+  useEffect(() => {
+    backend.updateInfo().then(setUpdate, () => {})
+  }, [backend])
+  // No answer from GitHub (offline, private repo): say nothing rather than guess.
+  if (!update?.latest) return null
+  return update.available && update.url ? (
+    <div className="update-row">
+      <span>
+        <strong>{APP_NAME} {update.latest}</strong> is available.
+      </span>
+      <Button variant="primary" size="sm" onClick={() => openExternal(update.url!)}>
+        <Download size={14} /> Download
+      </Button>
+    </div>
+  ) : (
+    <p className="settings-card__hint">You have the latest version.</p>
+  )
+}
+
+function formatSize(bytes: number): string {
+  return bytes > 1_048_576 ? `${(bytes / 1_048_576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`
+}
+
+function BackupsSection({ canRestore }: { canRestore: boolean }) {
+  const backend = useBackend()
+  const toast = useToast()
+  const [list, setList] = useState<BackupInfo[] | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [restoring, setRestoring] = useState<BackupInfo | null>(null)
+  const [showAll, setShowAll] = useState(false)
+
+  const load = useCallback(() => backend.backups().then(setList, () => setList([])), [backend])
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  const backupNow = async () => {
+    setBusy(true)
+    try {
+      const created = await backend.backupNow()
+      toast(created ? 'Backup saved.' : 'Nothing changed since the last backup.', 'info')
+      await load()
+    } catch (err) {
+      toast(err instanceof BackendError ? err.message : 'Couldn’t make a backup.', 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const restore = async () => {
+    if (!restoring) return
+    setBusy(true)
+    try {
+      await backend.restoreBackup(restoring.name)
+      setRestoring(null)
+      // Everything on screen may have changed: start fresh.
+      window.location.hash = '#/'
+      window.location.reload()
+    } catch (err) {
+      toast(err instanceof BackendError ? err.message : 'Couldn’t restore that backup.', 'error')
+      setBusy(false)
+    }
+  }
+
+  const shown = list ? (showAll ? list : list.slice(0, 5)) : []
+  const when = (b: BackupInfo) =>
+    new Date(b.created * 1000).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+
+  return (
+    <section className="settings-card">
+      <h2>Backups</h2>
+      <p className="settings-card__text">
+        Anki saves a backup before every sync, every 30 minutes while you study, and when you quit.
+      </p>
+      <div className="settings-card__actions">
+        <Button variant="secondary" onClick={() => void backupNow()} disabled={busy}>
+          <Save size={15} /> Back up now
+        </Button>
+        {inDesktopWindow() && (
+          <Button variant="ghost" onClick={() => openFolder('backups')}>
+            <FolderOpen size={15} /> Show in folder
+          </Button>
+        )}
+      </div>
+      {list && list.length > 0 && (
+        <ul className="backups">
+          {shown.map((b) => (
+            <li key={b.name} className="backups__row">
+              <span className="backups__when">{when(b)}</span>
+              <span className="backups__size tabular">{formatSize(b.size)}</span>
+              {canRestore && (
+                <button className="link" onClick={() => setRestoring(b)} disabled={busy}>
+                  <RotateCcw size={13} /> Restore…
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {list && list.length > 5 && (
+        <button className="link backups__more" onClick={() => setShowAll((v) => !v)}>
+          {showAll ? 'Show fewer' : `Show all ${list.length}`}
+        </button>
+      )}
+
+      <Dialog
+        open={restoring !== null}
+        blocking={busy}
+        onClose={() => setRestoring(null)}
+        title="Restore this backup?"
+        actions={
+          <>
+            <Button variant="ghost" onClick={() => setRestoring(null)} disabled={busy}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={() => void restore()} disabled={busy}>
+              {busy ? 'Restoring…' : 'Restore'}
+            </Button>
+          </>
+        }
+      >
+        <p>
+          Your collection on this computer goes back to how it was on <strong>{restoring ? when(restoring) : ''}</strong>.
+          Anything you did since then is replaced. A backup of how it is now is saved first, so you can undo this.
+        </p>
+        <p>
+          The next sync will ask which copy to keep: choose <strong>Upload</strong> to send the restored cards to AnkiWeb
+          and your other devices.
+        </p>
       </Dialog>
     </section>
   )

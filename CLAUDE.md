@@ -38,7 +38,12 @@ than any feature.**
     (`python -m anki.syncserver`, `$ROUNDS_SYNC_ENDPOINT`), never real AnkiWeb.
   - No operation may call `col.mod_schema()` or change note types. A schema
     change forces a one-way sync. The same goes for deleting deck-option
-    presets: `service/deck_options.py` always sends `removed_config_ids=[]`.
+    presets: `service/deck_options.py` always sends `removed_config_ids=[]`,
+    and `.apkg` imports never update existing note types.
+  - The one deliberate exception is **restoring a backup** (Settings → Backups,
+    `service/backups.py`), like Anki desktop's "Revert to backup": desktop app
+    only, from the computer only, after a confirmation, and a backup of the
+    current state is taken first. The next sync then asks for a direction.
 - **Phones on the home network (desktop app).** Off by default; the user turns
   it on in Settings (`api/sharing.py`). Other devices must pair with the
   6-digit code (rate-limited); only hashes of device tokens are stored

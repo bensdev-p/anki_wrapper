@@ -465,3 +465,21 @@ export interface ImportStatus {
   result: ImportSummary | null
   error: string | null
 }
+
+// Backups & updates
+
+export interface BackupInfo {
+  name: string
+  /** Unix seconds. */
+  created: number
+  /** Bytes. */
+  size: number
+}
+
+export interface UpdateInfo {
+  current: string
+  latest: string | null
+  available: boolean
+  /** Release page to download from. */
+  url: string | null
+}

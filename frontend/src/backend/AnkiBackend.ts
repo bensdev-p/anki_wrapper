@@ -1,4 +1,6 @@
 import type {
+  BackupInfo,
+  UpdateInfo,
   CustomStudyInfo,
   CustomStudyRequest,
   FilteredDeckForm,
@@ -106,6 +108,14 @@ export interface AnkiBackend {
   undoStep(label: string): Promise<void>
   deckOptions(deckId: number): Promise<DeckOptions>
   saveDeckOptions(deckId: number, update: DeckOptionsUpdate): Promise<DeckOptions>
+  /** Anki's .colpkg backups, newest first. */
+  backups(): Promise<BackupInfo[]>
+  /** Resolves false when nothing changed since the last backup. */
+  backupNow(): Promise<boolean>
+  /** Replace the collection with a backup (desktop app, on the computer). */
+  restoreBackup(name: string): Promise<void>
+  /** Is a newer desktop app out? */
+  updateInfo(): Promise<UpdateInfo>
   customStudyInfo(deckId: number): Promise<CustomStudyInfo>
   /** Run a custom study option; resolves with the deck to study next. */
   customStudy(deckId: number, request: CustomStudyRequest): Promise<number>

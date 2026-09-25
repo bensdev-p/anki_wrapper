@@ -23,6 +23,7 @@ import logging.handlers
 import os
 import signal
 import socket
+import subprocess
 import sys
 import threading
 import time
@@ -156,9 +157,26 @@ class Server:
 class JsApi:
     """Called from the UI as window.pywebview.api.<name>(…). Keep it small."""
 
+    def __init__(self, folder: Path) -> None:
+        self._folder = folder
+
     def open_external(self, url: str) -> None:
         if isinstance(url, str) and url.startswith(("https://", "http://")):
             webbrowser.open(url)
+
+    def open_folder(self, which: str) -> None:
+        """Show the data, backups or logs folder in Finder / Explorer / the file manager."""
+        sub = {"data": "", "backups": "synced/backups", "logs": "logs"}.get(which)
+        if sub is None:
+            return
+        path = self._folder / sub
+        path.mkdir(parents=True, exist_ok=True)
+        if sys.platform == "darwin":
+            subprocess.Popen(["open", str(path)])
+        elif os.name == "nt":
+            os.startfile(str(path))  # type: ignore[attr-defined]  # noqa: S606
+        else:
+            subprocess.Popen(["xdg-open", str(path)])
 
 
 ERROR_PAGE = """<!doctype html><meta charset=utf-8><title>{app}</title>
@@ -167,14 +185,14 @@ ERROR_PAGE = """<!doctype html><meta charset=utf-8><title>{app}</title>
 <p style="color:#666">Details are in the log file:<br><code>{log}</code></p></body>"""
 
 
-def show_window(url: str | None, storage: Path, error_html: str | None = None) -> None:
+def show_window(url: str | None, storage: Path, folder: Path, error_html: str | None = None) -> None:
     import webview
 
     webview.create_window(
         APP,
         url=url,
         html=error_html,
-        js_api=JsApi(),
+        js_api=JsApi(folder),
         width=1240,
         height=860,
         min_size=(420, 560),
@@ -259,7 +277,7 @@ def main() -> None:
         port = current.get("running_port") or current.get("port", DEFAULT_PORT)
         log.info("already running; opening another window on port %s", port)
         url = f"http://127.0.0.1:{port}/"
-        run_in_browser(url) if args.browser else show_window(url, storage)
+        run_in_browser(url) if args.browser else show_window(url, storage, folder)
         return
 
     port = pick_port(settings)
@@ -277,7 +295,7 @@ def main() -> None:
         if args.browser:
             print(f"{APP} couldn’t start: {err}", file=sys.__stderr__)
         else:
-            show_window(None, storage, error_html=page)
+            show_window(None, storage, folder, error_html=page)
         return
 
     handle_termination()
@@ -286,7 +304,7 @@ def main() -> None:
             run_in_browser(server.url)
         else:
             try:
-                show_window(server.url, storage)
+                show_window(server.url, storage, folder)
             except Exception:
                 # No usable web view on this system (rare; e.g. Linux without Qt): fall back.
                 log.exception("couldn't open a window; using the browser")

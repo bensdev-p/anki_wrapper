@@ -488,3 +488,16 @@ class ImportSummary:
     skipped: int
     """Notes not imported: missing note type/deck, empty first field."""
     found: int
+
+
+# Backups
+##########################################################################
+
+
+@dataclass
+class BackupInfo:
+    name: str
+    created: float
+    """Unix seconds."""
+    size: int
+    """Bytes."""

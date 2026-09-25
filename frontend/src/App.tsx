@@ -3,11 +3,15 @@ import { useEffect, useMemo, useState } from 'react'
 import { AppNav } from './components/AppNav'
 import { CommandPalette, type PaletteAction } from './components/CommandPalette'
 import { AddNote } from './components/editor/AddNote'
+import { useToast } from './components/Toast'
+import { useBackend } from './backend/context'
 import { ImportDialog } from './components/ImportDialog'
 import { APP_NAME, Logo } from './components/Logo'
 import { TopBar } from './components/TopBar'
 import { openAddNote } from './lib/addNote'
 import { openImport } from './lib/importer'
+import { openExternal } from './lib/platform'
+import { load, save } from './lib/storage'
 import { flattenDecks, useDecks } from './lib/decks'
 import { navigate, STATS_DEFAULT_DAYS, useRoute } from './lib/router'
 import { SYNCED_EVENT, useSyncLifecycle } from './lib/sync'
@@ -23,6 +27,7 @@ export default function App() {
   const [paletteOpen, setPaletteOpen] = useState(false)
   const { decks, reload: reloadDecks } = useDecks()
   useSyncLifecycle()
+  useUpdateNotice()
 
   // After a sync, deck counts may have changed on another device.
   useEffect(() => {
@@ -125,4 +130,30 @@ export default function App() {
       <ImportDialog />
     </>
   )
+}
+
+/** Once per new version, tell the desktop app's user an update is out. */
+function useUpdateNotice() {
+  const backend = useBackend()
+  const toast = useToast()
+  useEffect(() => {
+    let cancelled = false
+    const t = window.setTimeout(() => {
+      backend.info().then(
+        (info) => {
+          if (cancelled || !info.desktop || info.remote) return
+          void backend.updateInfo().then((u) => {
+            if (cancelled || !u.available || !u.url || load('update-dismissed', '') === u.latest) return
+            save('update-dismissed', u.latest)
+            toast(`Rounds ${u.latest} is available.`, 'info', { label: 'Download', run: () => openExternal(u.url!) })
+          })
+        },
+        () => {},
+      )
+    }, 4000)
+    return () => {
+      cancelled = true
+      window.clearTimeout(t)
+    }
+  }, [backend, toast])
 }

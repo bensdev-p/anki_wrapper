@@ -1,6 +1,8 @@
 import { BackendError, type AnkiBackend } from './AnkiBackend'
 import { reportOnline } from '../lib/connection'
 import type {
+  BackupInfo,
+  UpdateInfo,
   CustomStudyInfo,
   CustomStudyRequest,
   FilteredDeckForm,
@@ -151,6 +153,12 @@ export class HttpBackend implements AnkiBackend {
   deckOptions = (deckId: number) => this.request<DeckOptions>(`/decks/${deckId}/options`)
   saveDeckOptions = (deckId: number, update: DeckOptionsUpdate) =>
     this.request<DeckOptions>(`/decks/${deckId}/options`, { method: 'PUT', body: JSON.stringify(update) })
+  backups = () => this.request<BackupInfo[]>('/backups')
+  backupNow = async () => (await this.request<{ created: boolean }>('/backups', { method: 'POST' })).created
+  restoreBackup = async (name: string) => {
+    await this.request('/backups/restore', { method: 'POST', body: JSON.stringify({ name }) })
+  }
+  updateInfo = () => this.request<UpdateInfo>('/update')
   customStudyInfo = (deckId: number) => this.request<CustomStudyInfo>(`/decks/${deckId}/custom-study`)
   customStudy = async (deckId: number, request: CustomStudyRequest) =>
     (await this.request<{ deck_id: number }>(`/decks/${deckId}/custom-study`, { method: 'POST', body: JSON.stringify(request) }))
