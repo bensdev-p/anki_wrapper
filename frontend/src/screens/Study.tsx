@@ -9,6 +9,7 @@ import { useBackend } from '../backend/context'
 import type { Rating, StudyState } from '../backend/types'
 import { Button } from '../components/Button'
 import { CardFrame, type CardKeyEvent, type CardSide } from '../components/card/CardFrame'
+import { useCardStyle } from '../lib/cardStyle'
 import { CountPills } from '../components/CountPills'
 import { Kbd } from '../components/Kbd'
 import { useToast } from '../components/Toast'
@@ -76,6 +77,7 @@ interface Props {
 }
 
 export function Study({ deckId, paused, onOpenPalette }: Props) {
+  const cardStyle = useCardStyle()
   const backend = useBackend()
   const toast = useToast()
   const { theme } = useTheme()
@@ -439,7 +441,10 @@ export function Study({ deckId, paused, onOpenPalette }: Props) {
       ) : (
         <>
           <div className="stage">
-            <div className={`card-surface ${state ? '' : 'is-loading'}`}>
+            <div
+              className={`card-surface card-surface--${cardStyle} ${state ? '' : 'is-loading'}`}
+              data-queue={card?.queue}
+            >
               <CardFrame
                 renderKey={`${seq}:${side}`}
                 rendered={card?.rendered ?? null}
