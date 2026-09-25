@@ -3553,3 +3553,50 @@
 #appearance {
   scroll-margin-top: calc(56px + var(--sp-4) + env(safe-area-inset-top));
 }
+
+/* Appearance: collapsible gallery */
+.appearance__current {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.appearance__current strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.appearance__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  width: 100%;
+  margin-top: var(--sp-4);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  font-size: var(--fs-sm);
+  font-weight: 550;
+  color: var(--text-muted);
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.appearance__toggle:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.appearance__toggle svg {
+  transition: transform var(--dur-base) var(--ease-out);
+}
+.appearance__toggle svg.is-open {
+  transform: rotate(180deg);
+}
+#appearance-gallery {
+  margin-top: var(--sp-4);
+}
+#appearance-gallery > .settings-card__hint {
+  margin-top: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .appearance__toggle svg {
+    transition: none;
+  }
+}

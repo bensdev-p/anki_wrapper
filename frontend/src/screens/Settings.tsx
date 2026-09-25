@@ -1,4 +1,4 @@
-import { Check, Copy, Download, FolderOpen, LogIn, RefreshCw, RotateCcw, Save, Search, Smartphone, Upload } from 'lucide-react'
+import { Check, ChevronDown, Copy, Download, FolderOpen, LogIn, RefreshCw, RotateCcw, Save, Search, Smartphone, Upload } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useBackend } from '../backend/context'
 import { BackendError } from '../backend/AnkiBackend'
@@ -10,6 +10,8 @@ import { SignInDialog } from '../components/SignInDialog'
 import { Switch } from '../components/Switch'
 import { useToast } from '../components/Toast'
 import { openImport } from '../lib/importer'
+import { load, save } from '../lib/storage'
+import { ThemeSwatch } from '../components/ThemeMenu'
 import { useTheme } from '../themes/ThemeProvider'
 import { EDITOR_FAMILIES } from '../themes/editorThemes'
 import { CORE_THEME_IDS, SYSTEM, type Theme } from '../themes/themes'
@@ -395,6 +397,17 @@ function ThemeCard({ theme, selected, onPick }: { theme: Theme; selected: boolea
 
 function AppearanceSection() {
   const { choice, theme, themes, setChoice } = useTheme()
+  // Closed by default (it's long); remembered; "All themes…" opens it.
+  const [open, setOpenState] = useState(() => window.location.hash.includes('appearance') || load('appearance-open', false))
+  const setOpen = (next: boolean) => {
+    setOpenState(next)
+    save('appearance-open', next)
+  }
+  useEffect(() => {
+    const onHash = () => window.location.hash.includes('appearance') && setOpenState(true)
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
   const [kind, setKind] = useState<'all' | 'light' | 'dark'>('all')
   const [query, setQuery] = useState('')
   const q = query.trim().toLowerCase()
@@ -413,8 +426,12 @@ function AppearanceSection() {
       <div className="settings-card__head">
         <div>
           <h2>Appearance</h2>
-          <p className="settings-card__text">
-            {themes.length} themes. Cards follow along: dark themes turn on your decks’ night mode.
+          <p className="settings-card__text appearance__current">
+            <ThemeSwatch theme={theme} />
+            <span>
+              <strong>{theme.name}</strong>
+              {choice === SYSTEM ? ' (matching your system)' : ''}
+            </span>
           </p>
         </div>
         <label className="options__children">
@@ -422,39 +439,53 @@ function AppearanceSection() {
           Match system light/dark
         </label>
       </div>
-      <div className="theme-filter">
-        <div className="chips" role="radiogroup" aria-label="Show">
-          {(['all', 'dark', 'light'] as const).map((k) => (
-            <button key={k} className="chip" role="radio" aria-checked={kind === k} onClick={() => setKind(k)}>
-              {k === 'all' ? 'All' : k === 'dark' ? 'Dark' : 'Light'}
-            </button>
+      <button
+        className="appearance__toggle"
+        aria-expanded={open}
+        aria-controls="appearance-gallery"
+        onClick={() => setOpen(!open)}
+      >
+        <span>{open ? 'Hide themes' : `Show all ${themes.length} themes`}</span>
+        <ChevronDown size={16} className={open ? 'is-open' : ''} aria-hidden="true" />
+      </button>
+      {open && (
+        <div id="appearance-gallery">
+          <p className="settings-card__hint">Cards follow along: dark themes turn on your decks’ night mode.</p>
+          <div className="theme-filter">
+            <div className="chips" role="radiogroup" aria-label="Show">
+              {(['all', 'dark', 'light'] as const).map((k) => (
+                <button key={k} className="chip" role="radio" aria-checked={kind === k} onClick={() => setKind(k)}>
+                  {k === 'all' ? 'All' : k === 'dark' ? 'Dark' : 'Light'}
+                </button>
+              ))}
+            </div>
+            <label className="filter theme-filter__search">
+              <Search size={15} className="filter__icon" aria-hidden="true" />
+              <input
+                className="filter__input"
+                type="search"
+                placeholder="Find a theme"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                aria-label="Find a theme"
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </label>
+          </div>
+          {groups.length === 0 && <p className="settings-card__hint">No themes match “{query}”.</p>}
+          {groups.map(([label, list]) => (
+            <div key={label} className="theme-grid__group">
+              <h3 className="theme-grid__label">{label}</h3>
+              <div className="theme-grid" role="radiogroup" aria-label={label}>
+                {list.map((t) => (
+                  <ThemeCard key={t.id} theme={t} selected={choice === t.id} onPick={() => setChoice(t.id)} />
+                ))}
+              </div>
+            </div>
           ))}
         </div>
-        <label className="filter theme-filter__search">
-          <Search size={15} className="filter__icon" aria-hidden="true" />
-          <input
-            className="filter__input"
-            type="search"
-            placeholder="Find a theme"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            aria-label="Find a theme"
-            autoComplete="off"
-            spellCheck={false}
-          />
-        </label>
-      </div>
-      {groups.length === 0 && <p className="settings-card__hint">No themes match “{query}”.</p>}
-      {groups.map(([label, list]) => (
-        <div key={label} className="theme-grid__group">
-          <h3 className="theme-grid__label">{label}</h3>
-          <div className="theme-grid" role="radiogroup" aria-label={label}>
-            {list.map((t) => (
-              <ThemeCard key={t.id} theme={t} selected={choice === t.id} onPick={() => setChoice(t.id)} />
-            ))}
-          </div>
-        </div>
-      ))}
+      )}
     </section>
   )
 }
