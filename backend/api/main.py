@@ -12,6 +12,7 @@ import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse
@@ -527,7 +528,8 @@ async def media(request: Request, filename: str) -> FileResponse:
 # and proxies /api here; after `npm run build` this server can serve both.
 ##########################################################################
 
-_DIST = REPO_ROOT / "frontend" / "dist"
+# The desktop app bundles the built UI elsewhere and says where.
+_DIST = Path(os.environ.get("ROUNDS_FRONTEND_DIST") or REPO_ROOT / "frontend" / "dist")
 
 
 class _SpaStaticFiles(StaticFiles):

@@ -1,0 +1,144 @@
+# Builds the Rounds desktop app for macOS (Apple Silicon and Intel), Windows
+# and Linux.
+#
+# - "Run workflow" in the Actions tab: builds and attaches the downloads to
+#   the run (Actions → the run → Artifacts). Good for trying a build.
+# - Pushing a tag like v0.1.0: also creates a *draft* GitHub Release with the
+#   downloads. Check it, then press Publish.
+#
+# Not on every push: macOS build minutes are expensive on private repos.
+name: Desktop app
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            label: macOS-AppleSilicon
+          - os: macos-15-intel
+            label: macOS-Intel
+          - os: windows-latest
+            label: Windows
+          - os: ubuntu-22.04
+            label: Linux-x86_64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Read the version
+        id: version
+        shell: bash
+        run: |
+          v=$(python -c "import re; print(re.search(r'__version__ = \"(.+)\"', open('backend/version.py').read())[1])")
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_REF" == refs/tags/v* && "v$v" != "$GITHUB_REF_NAME" ]]; then
+            echo "::error::backend/version.py says $v but the tag is $GITHUB_REF_NAME"
+            exit 1
+          fi
+
+      - name: Build the UI
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Qt libraries (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 \
+            libxcb-keysyms1 libxcb-shape0 libxcb-xinerama0 libxcb-randr0 libxcb-render-util0 \
+            libxcb-image0 libnss3 libxcomposite1 libxdamage1 libxrandr2 libxtst6 libxkbfile1
+
+      - name: Python dependencies
+        run: pip install -r backend/requirements.txt -r desktop/requirements.txt
+
+      - name: Backend tests
+        if: runner.os == 'Linux'
+        run: pytest -q
+
+      - name: Build the app
+        run: pyinstaller desktop/rounds.spec --noconfirm
+
+      - name: Package (macOS disk image)
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p release dmg
+          cp -R dist/Rounds.app dmg/
+          ln -s /Applications dmg/Applications
+          hdiutil create -volname Rounds -srcfolder dmg -ov -format UDZO \
+            "release/Rounds-${{ steps.version.outputs.version }}-${{ matrix.label }}.dmg"
+
+      - name: Package (Windows installer)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\iscc.exe" `
+            "/DAppVersion=${{ steps.version.outputs.version }}" `
+            "/DSourceDir=$PWD\dist\Rounds" "/DOutputDir=$PWD\release" `
+            desktop\windows-installer.iss
+
+      - name: Package (Linux archive)
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p release
+          tar -czf "release/Rounds-${{ steps.version.outputs.version }}-${{ matrix.label }}.tar.gz" -C dist Rounds
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Rounds-${{ matrix.label }}
+          path: release/*
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: release/*
+          body: |
+            ## Download
+
+            - **Mac with Apple silicon (M1 or newer)**: `…-macOS-AppleSilicon.dmg`
+            - **Older Intel Mac**: `…-macOS-Intel.dmg`
+            - **Windows 10 / 11**: `…-Windows-Setup.exe`
+            - **Linux**: `…-Linux-x86_64.tar.gz`
+
+            Not sure which Mac you have? Apple menu → About This Mac → "Chip".
+
+            **First time opening on a Mac:** double-click the .dmg and drag Rounds into
+            Applications. The first time you open it, macOS may say it can't check the app for
+            malware. Open System Settings → Privacy & Security, scroll down, and click
+            **Open Anyway**. You only need to do this once.
+
+            **Windows:** if SmartScreen says "Windows protected your PC", click **More info →
+            Run anyway**.

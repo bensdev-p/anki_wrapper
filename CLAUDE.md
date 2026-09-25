@@ -47,6 +47,13 @@ than any feature.**
 - `backend/service/`: pure functions taking an `anki.collection.Collection`.
   **No FastAPI or pydantic imports.** Returns dataclasses from `service/types.py`.
   It must stay reusable inside an Anki desktop add-on (`mw.col`).
+- `desktop/`: the desktop app. `rounds_desktop.py` runs the same server on
+  127.0.0.1 with `$ROUNDS_DESKTOP=1` / `$ROUNDS_DATA_DIR` and shows it in a
+  pywebview window (WKWebView / WebView2 / Qt WebEngine). The UI reaches
+  native features only through `window.pywebview.api` (`lib/platform.ts`).
+  `rounds.spec` (PyInstaller) + `.github/workflows/desktop.yml` build the
+  macOS/Windows/Linux downloads. Users never need a terminal: anything they
+  must do has a button in the app.
 - `backend/api/`: thin FastAPI layer. All collection access goes through
   `CollectionHost.run()`, which runs on one dedicated thread (Collection isn't
   thread-safe). Run uvicorn with **one worker only**.
@@ -102,6 +109,9 @@ python3 -m venv .venv && .venv/bin/pip install -r backend/requirements.txt
 .venv/bin/pytest                              # backend tests
 (cd frontend && npx tsc -b && npm run lint)   # frontend checks
 .venv/bin/python scripts/benchmark.py         # 100k-card timings
+.venv/bin/pip install -r desktop/requirements.txt
+./scripts/desktop.sh [--browser]              # desktop app from a checkout
+.venv/bin/pyinstaller desktop/rounds.spec     # build the app (after npm run build)
 ```
 
 ## Working agreements

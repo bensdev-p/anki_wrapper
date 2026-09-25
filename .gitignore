@@ -17,3 +17,7 @@ data/*
 *.apkg
 
 .DS_Store
+
+# Desktop app builds (PyInstaller)
+build/
+dist/

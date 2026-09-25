@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import type { RenderedCard } from '../../backend/types'
 import type { Theme } from '../../themes/themes'
-import { isApple, isTouch } from '../../lib/platform'
+import { isApple, isTouch, openExternal } from '../../lib/platform'
 import baseCss from './card-base.css?raw'
 import runtimeJs from './runtime.js?raw'
 
@@ -126,9 +126,7 @@ export function CardFrame({ renderKey, rendered, side, theme, mediaBaseUrl, scro
       else if (msg.type === 'pycmd' && typeof msg.cmd === 'string') handlers.current.onCommand?.(msg.cmd)
       else if (msg.type === 'missing' && typeof msg.src === 'string') handlers.current.onMissingMedia?.(msg.src)
       else if (msg.type === 'storage' && msg.data && typeof msg.data === 'object') saveCardStorage(msg.data)
-      else if (msg.type === 'open' && typeof msg.url === 'string' && /^https?:\/\//i.test(msg.url)) {
-        window.open(msg.url, '_blank', 'noopener,noreferrer')
-      }
+      else if (msg.type === 'open' && typeof msg.url === 'string') openExternal(msg.url)
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)

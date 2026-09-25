@@ -1,0 +1,9 @@
+# Desktop app build dependencies, on top of backend/requirements.txt. Pinned exactly.
+# pywebview pulls in each platform's own web view bindings (pyobjc on macOS,
+# pythonnet on Windows). Linux uses Qt WebEngine, bundled into the app.
+pywebview==6.2.1
+pyinstaller==6.22.3
+pillow==12.3.0            # converts the PNG icon to .icns / .ico at build time
+PyQt6==6.11.0 ; sys_platform == "linux"
+PyQt6-WebEngine==6.11.0 ; sys_platform == "linux"
+qtpy==2.4.3 ; sys_platform == "linux"

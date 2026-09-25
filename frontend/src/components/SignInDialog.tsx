@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { BackendError } from '../backend/AnkiBackend'
+import { openExternal } from '../lib/platform'
 import { useSync } from '../lib/sync'
 import { Button } from './Button'
 import { Dialog } from './Dialog'
@@ -99,7 +100,15 @@ export function SignInDialog({ open, onClose }: { open: boolean; onClose(): void
         )}
         <p className="dialog-hint">
           Your password goes straight to AnkiWeb and isn’t saved. No account yet?{' '}
-          <a href="https://ankiweb.net/account/signup" target="_blank" rel="noreferrer">
+          <a
+            href="https://ankiweb.net/account/signup"
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => {
+              e.preventDefault()
+              openExternal(e.currentTarget.href)
+            }}
+          >
             Create one on ankiweb.net
           </a>
           .
