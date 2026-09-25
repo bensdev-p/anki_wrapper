@@ -30,9 +30,12 @@ from service.types import (
     AddDefaults,
     AddNoteResult,
     AnswerResult,
+    CustomStudyInfo,
     DeckName,
     DeckOptions,
     DeletedDeck,
+    FilteredDeckForm,
+    FilteredDeckSpec,
     BrowsePage,
     CardInfo,
     NoteForEdit,
@@ -45,6 +48,7 @@ from service.types import (
 )
 
 from .host import CollectionHost
+from .importer import ImportManager, ImportStatus
 from .sharing import COOKIE, COOKIE_MAX_AGE, PairingLocked, Sharing, SharingStatus
 from .sync_manager import AuthFailed, SyncManager, SyncStatus
 
@@ -84,6 +88,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     host.open()
     app.state.host = host
     app.state.sync = SyncManager(host)
+    app.state.importer = ImportManager(host)
     # Phones on the home network: a desktop-app feature (the Pi is on the network anyway).
     app.state.sharing = Sharing(synced_dir().parent, app) if desktop_mode() else None  # the app's data folder
     if app.state.sharing:
@@ -97,6 +102,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if backups:
             backups.cancel()
         await app.state.sync.wait()
+        await app.state.importer.wait()
         if backups:
             try:
                 await host.run(_backup(host, force=False))
@@ -450,6 +456,91 @@ async def put_deck_options(request: Request, deck_id: int, body: DeckOptionsUpda
             apply_to_children=body.apply_to_children,
         )
     )
+
+
+# Custom study, filtered decks, importing
+##########################################################################
+
+
+@app.get("/api/decks/{deck_id}/custom-study")
+async def custom_study_info(request: Request, deck_id: int) -> CustomStudyInfo:
+    return await _host(request).run(lambda col: service.study_tools.custom_study_info(col, deck_id))
+
+
+class CustomStudyBody(BaseModel):
+    kind: str = Field(pattern="^(new|review|forgot|ahead|preview|cram)$")
+    amount: int = Field(ge=1, le=9999)
+    cram_kind: str = Field("all", pattern="^(due|new|review|all)$")
+    tags_include: list[str] = Field(default_factory=list)
+    tags_exclude: list[str] = Field(default_factory=list)
+
+
+@dataclass
+class DeckRef:
+    deck_id: int
+
+
+@app.post("/api/decks/{deck_id}/custom-study")
+async def custom_study(request: Request, deck_id: int, body: CustomStudyBody) -> DeckRef:
+    """Returns the deck to study next (the Custom Study Session, or this deck)."""
+    return DeckRef(
+        await _host(request).run(
+            lambda col: service.study_tools.custom_study(
+                col, deck_id, body.kind, body.amount, body.cram_kind, body.tags_include, body.tags_exclude  # type: ignore[arg-type]
+            )
+        )
+    )
+
+
+@app.get("/api/filtered/{deck_id}")
+async def get_filtered(request: Request, deck_id: int, search: str | None = Query(None, max_length=2000)) -> FilteredDeckForm:
+    """A filtered deck to edit; deck_id 0 gives Anki's defaults for a new one."""
+    return await _host(request).run(lambda col: service.study_tools.filtered_deck(col, deck_id, search))
+
+
+class FilteredBody(BaseModel):
+    id: int = 0
+    name: str = Field(min_length=1, max_length=500)
+    search: str = Field(min_length=1, max_length=2000)
+    limit: int = Field(ge=1, le=99999)
+    order: int = Field(ge=0, le=50)
+    reschedule: bool = True
+    search2: str | None = Field(None, max_length=2000)
+    limit2: int = Field(0, ge=0, le=99999)
+    order2: int = Field(0, ge=0, le=50)
+
+
+@app.put("/api/filtered")
+async def save_filtered(request: Request, body: FilteredBody) -> DeckRef:
+    spec = FilteredDeckSpec(**body.model_dump())
+    return DeckRef(await _host(request).run(lambda col: service.study_tools.save_filtered_deck(col, spec)))
+
+
+@app.post("/api/filtered/{deck_id}/rebuild")
+async def rebuild_filtered(request: Request, deck_id: int) -> CardCount:
+    return CardCount(await _host(request).run(lambda col: service.study_tools.rebuild_filtered_deck(col, deck_id)))
+
+
+@app.post("/api/filtered/{deck_id}/empty")
+async def empty_filtered(request: Request, deck_id: int) -> CardCount:
+    await _host(request).run(lambda col: service.study_tools.empty_filtered_deck(col, deck_id))
+    return CardCount(0)
+
+
+@app.get("/api/import")
+async def import_status(request: Request) -> ImportStatus:
+    return request.app.state.importer.status()
+
+
+@app.post("/api/import")
+async def import_start(request: Request, name: str = Query(..., min_length=1, max_length=300)) -> ImportStatus:
+    """Upload a .apkg (raw body) and import it in the background; poll GET /api/import."""
+    importer: ImportManager = request.app.state.importer
+    try:
+        await importer.receive_and_start(request, name)
+    except PermissionError as err:
+        raise HTTPException(409, str(err)) from err
+    return importer.status()
 
 
 # Adding notes

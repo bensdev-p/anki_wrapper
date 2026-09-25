@@ -436,3 +436,55 @@ class AddNoteResult:
     cards: int
     duplicate: bool
     """The first field matches another note of this type (added anyway, as in Anki)."""
+
+
+# Custom study, filtered decks, importing
+##########################################################################
+
+
+@dataclass
+class CustomStudyInfo:
+    deck_id: int
+    deck_name: str
+    available_new: int
+    """New cards not yet shown today (this deck only; see *_in_children)."""
+    available_review: int
+    available_new_in_children: int
+    available_review_in_children: int
+    extend_new: int
+    """Anki's suggested amounts for "increase today's limit"."""
+    extend_review: int
+    tags: list[str]
+
+
+@dataclass
+class FilteredDeckSpec:
+    id: int
+    """0 for a new filtered deck."""
+    name: str
+    search: str
+    limit: int
+    order: int
+    reschedule: bool
+    search2: str | None = None
+    """Optional second filter (Anki's "Filter 2")."""
+    limit2: int = 0
+    order2: int = 0
+
+
+@dataclass
+class FilteredDeckForm:
+    deck: FilteredDeckSpec
+    order_labels: list[str]
+    """Anki's names for the order choices (index = order number)."""
+
+
+@dataclass
+class ImportSummary:
+    new: int
+    updated: int
+    duplicate: int
+    conflicting: int
+    skipped: int
+    """Notes not imported: missing note type/deck, empty first field."""
+    found: int
