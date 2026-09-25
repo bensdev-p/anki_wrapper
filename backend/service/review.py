@@ -186,6 +186,18 @@ def undo(col: Collection) -> UndoResult:
     return UndoResult(undone=out.operation, was_answer=out.operation == col.tr.actions_answer_card())
 
 
+def undo_step(col: Collection, label: str) -> UndoResult:
+    """Undo the last step only if it's still the one the user saw (e.g. "Delete Deck").
+
+    For "Undo" buttons in the app's notices: if anything else has changed
+    since, nothing is undone.
+    """
+    if not label or col.undo_status().undo != label:
+        raise NothingToUndo("Something else changed since, so that can’t be undone here.")
+    out = col.undo()
+    return UndoResult(undone=out.operation, was_answer=False)
+
+
 # Card actions (same operations and undo entries as Anki desktop's reviewer)
 ##########################################################################
 

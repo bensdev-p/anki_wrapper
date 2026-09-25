@@ -1,6 +1,12 @@
 import { BackendError, type AnkiBackend } from './AnkiBackend'
 import { reportOnline } from '../lib/connection'
 import type {
+  AddDefaults,
+  AddNoteResult,
+  DeckName,
+  DeckOptions,
+  DeckOptionsUpdate,
+  DeletedDeck,
   AnswerResponse,
   BrowseActionKind,
   BrowsePage,
@@ -128,5 +134,32 @@ export class HttpBackend implements AnkiBackend {
   pair = async (code: string) => {
     await this.request<{ paired: boolean }>('/pair', { method: 'POST', body: JSON.stringify({ code }) })
   }
+  deckNames = () => this.request<DeckName[]>('/deck-names')
+  createDeck = (name: string) => this.request<DeckName>('/decks', { method: 'POST', body: JSON.stringify({ name }) })
+  renameDeck = (deckId: number, name: string) =>
+    this.request<DeckName>(`/decks/${deckId}`, { method: 'PATCH', body: JSON.stringify({ name }) })
+  deckCardCount = async (deckId: number) => (await this.request<{ cards: number }>(`/decks/${deckId}/card-count`)).cards
+  deleteDeck = (deckId: number) => this.request<DeletedDeck>(`/decks/${deckId}`, { method: 'DELETE' })
+  undoStep = async (label: string) => {
+    await this.request('/undo-step', { method: 'POST', body: JSON.stringify({ label }) })
+  }
+  deckOptions = (deckId: number) => this.request<DeckOptions>(`/decks/${deckId}/options`)
+  saveDeckOptions = (deckId: number, update: DeckOptionsUpdate) =>
+    this.request<DeckOptions>(`/decks/${deckId}/options`, { method: 'PUT', body: JSON.stringify(update) })
+  addDefaults = (deckId?: number) =>
+    this.request<AddDefaults>(`/add${deckId ? `?${new URLSearchParams({ deck_id: String(deckId) })}` : ''}`)
+  addNote = (notetypeId: number, deckId: number, fields: Record<string, string>, tags: string[]) =>
+    this.request<AddNoteResult>('/notes', {
+      method: 'POST',
+      body: JSON.stringify({ notetype_id: notetypeId, deck_id: deckId, fields, tags }),
+    })
+  uploadMedia = async (name: string, data: Blob) =>
+    (
+      await this.request<{ filename: string }>(`/media?${new URLSearchParams({ name })}`, {
+        method: 'POST',
+        body: data,
+        headers: { 'Content-Type': 'application/octet-stream' },
+      })
+    ).filename
   mediaBaseUrl = () => new URL(this.mediaPath, window.location.href).href
 }

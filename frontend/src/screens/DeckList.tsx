@@ -1,10 +1,13 @@
-import { ArrowRight, ChevronRight, LogIn, Search, X } from 'lucide-react'
+import { ArrowRight, ChevronRight, FolderPlus, LogIn, Plus, Search, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useBackend } from '../backend/context'
 import type { CollectionInfo, Counts, DeckNode } from '../backend/types'
 import { Button } from '../components/Button'
+import { DeckDialogs, type DeckDialogState } from '../components/DeckDialogs'
+import { DeckMenu, type DeckAction } from '../components/DeckMenu'
 import { Kbd } from '../components/Kbd'
 import { SignInDialog } from '../components/SignInDialog'
+import { openAddNote } from '../lib/addNote'
 import { useDecks } from '../lib/decks'
 import { navigate } from '../lib/router'
 import { load, save } from '../lib/storage'
@@ -78,6 +81,7 @@ export function DeckList() {
   const [query, setQuery] = useState('')
   const [collapsed, setCollapsed] = useState<Record<number, boolean>>(() => load('collapsed', {}))
   const [signInOpen, setSignInOpen] = useState(false)
+  const [dialog, setDialog] = useState<DeckDialogState>(null)
   const { status: sync } = useSync()
   const filterRef = useRef<HTMLInputElement>(null)
 
@@ -115,6 +119,27 @@ export function DeckList() {
   }
   const study = (n: DeckNode) => navigate({ name: 'study', deckId: n.id })
 
+  const onDeckAction = (action: DeckAction, deck: DeckNode) => {
+    if (action === 'add') openAddNote(deck.id)
+    else if (action === 'options') navigate({ name: 'options', deckId: deck.id })
+    else if (action === 'rename') setDialog({ kind: 'rename', deck })
+    else if (action === 'subdeck') setDialog({ kind: 'create', prefix: `${deck.full_name}::` })
+    else setDialog({ kind: 'delete', deck })
+  }
+
+  // "A" adds a card, as in Anki's main window.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement
+      if (e.key.toLowerCase() === 'a' && !e.metaKey && !e.ctrlKey && !e.altKey && !/INPUT|TEXTAREA|SELECT/.test(t.tagName) && !document.querySelector('dialog[open]')) {
+        e.preventDefault()
+        openAddNote()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   const renderNodes = (nodes: DeckNode[], depth: number): ReactNode =>
     nodes.map((n) => {
       const hasKids = n.children.length > 0
@@ -140,6 +165,7 @@ export function DeckList() {
             <span className={`deck__count count--new ${n.counts.new ? '' : 'count--zero'}`}>{n.counts.new}</span>
             <span className={`deck__count count--learning ${n.counts.learning ? '' : 'count--zero'}`}>{n.counts.learning}</span>
             <span className={`deck__count count--review ${n.counts.review ? '' : 'count--zero'}`}>{n.counts.review}</span>
+            <DeckMenu deck={n} onAction={onDeckAction} />
           </div>
           {open && (
             <ul role="group" className="deck__children">
@@ -216,7 +242,7 @@ export function DeckList() {
       )}
 
       <section className="panel" aria-label="Decks">
-        <div className="panel__toolbar">
+        <div className="panel__toolbar panel__toolbar--decks">
           <label className="filter">
             <Search size={16} className="filter__icon" aria-hidden="true" />
             <input
@@ -247,6 +273,14 @@ export function DeckList() {
               <Kbd className="filter__kbd">/</Kbd>
             )}
           </label>
+          <Button variant="secondary" onClick={() => setDialog({ kind: 'create', prefix: '' })} title="New deck">
+            <FolderPlus size={15} />
+            <span className="btn__label">New deck</span>
+          </Button>
+          <Button variant="primary" onClick={() => openAddNote()} title="Add a card (A)">
+            <Plus size={15} />
+            <span className="btn__label">Add card</span>
+          </Button>
         </div>
 
         <div className="deck-head" aria-hidden="true">
@@ -254,6 +288,7 @@ export function DeckList() {
           <span className="count--new">New</span>
           <span className="count--learning">Learn</span>
           <span className="count--review">Due</span>
+          <span />
         </div>
 
         {error && !decks ? (
@@ -283,6 +318,11 @@ export function DeckList() {
           </ul>
         )}
       </section>
+      <DeckDialogs
+        state={dialog}
+        onClose={() => setDialog(null)}
+        onChanged={() => void reload()}
+      />
     </main>
   )
 }

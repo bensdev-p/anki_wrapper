@@ -262,6 +262,8 @@ export interface NoteField {
 export interface NoteForEdit {
   note_id: number
   notetype: string
+  /** Cloze note type (the editor offers the cloze button). */
+  is_cloze: boolean
   fields: NoteField[]
   tags: string[]
   css: string
@@ -304,3 +306,101 @@ export type BrowseSort = 'noteFld' | 'deck' | 'cardDue' | 'cardIvl' | 'cardEase'
 export type BrowseSelection = { card_ids: number[] } | { query: string; sort: BrowseSort; reverse: boolean }
 
 export type BrowseActionKind = 'suspend' | 'unsuspend' | 'flag' | 'add_tags' | 'remove_tags' | 'set_due'
+
+// Deck management & options (mirror service/types.py)
+
+export interface DeckName {
+  id: number
+  /** Full name, e.g. "Step 1::Cardio". */
+  name: string
+  filtered: boolean
+}
+
+export interface DeletedDeck {
+  name: string
+  cards: number
+  /** Pass to undoStep() to undo exactly this deletion. */
+  undo_label: string
+}
+
+/** Steps in minutes, intervals in days; enum fields hold Anki's enum numbers. */
+export interface DeckOptionsConfig {
+  new_per_day: number
+  reviews_per_day: number
+  learn_steps: number[]
+  relearn_steps: number[]
+  graduating_interval_good: number
+  graduating_interval_easy: number
+  new_card_insert_order: number
+  leech_threshold: number
+  leech_action: number
+  minimum_lapse_interval: number
+  maximum_review_interval: number
+  initial_ease: number
+  easy_multiplier: number
+  hard_multiplier: number
+  lapse_multiplier: number
+  interval_multiplier: number
+  desired_retention: number
+  new_card_gather_priority: number
+  new_card_sort_order: number
+  new_mix: number
+  interday_learning_mix: number
+  review_order: number
+  bury_new: boolean
+  bury_reviews: boolean
+  bury_interday_learning: boolean
+  show_timer: boolean
+  cap_answer_time_to_secs: number
+  disable_autoplay: boolean
+}
+
+export interface DeckPreset {
+  id: number
+  name: string
+  /** Decks using this preset. */
+  use_count: number
+}
+
+export interface DeckOptions {
+  deck_id: number
+  deck_name: string
+  preset_id: number
+  presets: DeckPreset[]
+  config: DeckOptionsConfig
+  /** FSRS is on for the whole collection. */
+  fsrs: boolean
+  has_children: boolean
+}
+
+export interface DeckOptionsUpdate {
+  preset_id: number
+  changes: Partial<DeckOptionsConfig>
+  rename_preset?: string
+  new_preset_name?: string
+  fsrs?: boolean
+  apply_to_children?: boolean
+}
+
+// Adding notes
+
+export interface NotetypeInfo {
+  id: number
+  name: string
+  fields: string[]
+  is_cloze: boolean
+}
+
+export interface AddDefaults {
+  notetypes: NotetypeInfo[]
+  decks: DeckName[]
+  notetype_id: number
+  deck_id: number
+}
+
+export interface AddNoteResult {
+  note_id: number
+  cards: number
+  /** Matches another note's first field (added anyway, as in Anki). */
+  duplicate: boolean
+}

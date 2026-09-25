@@ -1,4 +1,10 @@
 import type {
+  AddDefaults,
+  AddNoteResult,
+  DeckName,
+  DeckOptions,
+  DeckOptionsUpdate,
+  DeletedDeck,
   AnswerResponse,
   BrowseActionKind,
   BrowsePage,
@@ -82,6 +88,24 @@ export interface AnkiBackend {
   sharingQrUrl(url: string): string
   /** Pair this device with the code shown on the computer. */
   pair(code: string): Promise<void>
+  /** Every deck by full name. */
+  deckNames(): Promise<DeckName[]>
+  createDeck(name: string): Promise<DeckName>
+  /** Rename or move ("Parent::Child") a deck; subdecks follow. */
+  renameDeck(deckId: number, name: string): Promise<DeckName>
+  /** Cards in a deck and its subdecks. */
+  deckCardCount(deckId: number): Promise<number>
+  /** Delete a deck, its subdecks and their cards. */
+  deleteDeck(deckId: number): Promise<DeletedDeck>
+  /** Undo one specific step (e.g. "Delete Deck"), only if it's still the last change. */
+  undoStep(label: string): Promise<void>
+  deckOptions(deckId: number): Promise<DeckOptions>
+  saveDeckOptions(deckId: number, update: DeckOptionsUpdate): Promise<DeckOptions>
+  /** Note types, decks and Anki's starting choices for the Add screen. */
+  addDefaults(deckId?: number): Promise<AddDefaults>
+  addNote(notetypeId: number, deckId: number, fields: Record<string, string>, tags: string[]): Promise<AddNoteResult>
+  /** Save a pasted/dropped file to the media folder; resolves with the name to use. */
+  uploadMedia(name: string, data: Blob): Promise<string>
   /** Absolute base URL that card HTML media references resolve against. */
   mediaBaseUrl(): string
 }

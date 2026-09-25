@@ -1,14 +1,17 @@
-import { BarChart3, Home, Play, Search, Settings as SettingsIcon } from 'lucide-react'
+import { BarChart3, Home, Play, Plus, Search, Settings as SettingsIcon } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { AppNav } from './components/AppNav'
 import { CommandPalette, type PaletteAction } from './components/CommandPalette'
+import { AddNote } from './components/editor/AddNote'
 import { APP_NAME, Logo } from './components/Logo'
 import { TopBar } from './components/TopBar'
+import { openAddNote } from './lib/addNote'
 import { flattenDecks, useDecks } from './lib/decks'
 import { navigate, STATS_DEFAULT_DAYS, useRoute } from './lib/router'
 import { SYNCED_EVENT, useSyncLifecycle } from './lib/sync'
 import { Browser } from './screens/Browser'
 import { DeckList } from './screens/DeckList'
+import { DeckOptions } from './screens/DeckOptions'
 import { Settings } from './screens/Settings'
 import { Stats } from './screens/Stats'
 import { Study } from './screens/Study'
@@ -55,6 +58,12 @@ export default function App() {
     if (route.name !== 'browse') {
       list.push({ id: 'browse', label: 'Browse cards', icon: Search, run: () => navigate({ name: 'browse', q: '' }) })
     }
+    list.push({
+      id: 'add',
+      label: 'Add a card',
+      icon: Plus,
+      run: () => openAddNote(route.name === 'study' ? route.deckId : undefined),
+    })
     if (route.name !== 'settings') {
       list.push({ id: 'settings', label: 'Open settings', icon: SettingsIcon, run: () => navigate({ name: 'settings' }) })
     }
@@ -100,6 +109,8 @@ export default function App() {
             <Browser initialQuery={route.q} />
           ) : route.name === 'settings' ? (
             <Settings />
+          ) : route.name === 'options' ? (
+            <DeckOptions key={route.deckId} deckId={route.deckId} />
           ) : (
             <DeckList />
           )}
@@ -107,6 +118,7 @@ export default function App() {
         </div>
       )}
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} actions={actions} />
+      <AddNote />
     </>
   )
 }

@@ -22,6 +22,7 @@ from .review import (
     suspend,
     toggle_mark,
     undo,
+    undo_step,
 )
 from .search import search_cards
 from .stats import stats
@@ -61,4 +62,5 @@ __all__ = [
     "browser",
     "study_state",
     "undo",
+    "undo_step",
 ]

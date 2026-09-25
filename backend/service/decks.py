@@ -93,7 +93,7 @@ def delete_deck(col: Collection, deck_id: int) -> DeletedDeck:
     if deck_id == DEFAULT_DECK_ID:
         raise ValueError("The Default deck can’t be deleted. It hides itself when it’s empty.")
     out = col.decks.remove([deck_id])  # type: ignore[list-item]
-    return DeletedDeck(name=name, cards=out.count)
+    return DeletedDeck(name=name, cards=out.count, undo_label=col.undo_status().undo)
 
 
 def deck_card_count(col: Collection, deck_id: int) -> int:

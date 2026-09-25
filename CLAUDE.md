@@ -37,7 +37,8 @@ than any feature.**
   - Develop and test against Anki's local sync server
     (`python -m anki.syncserver`, `$ROUNDS_SYNC_ENDPOINT`), never real AnkiWeb.
   - No operation may call `col.mod_schema()` or change note types. A schema
-    change forces a one-way sync.
+    change forces a one-way sync. The same goes for deleting deck-option
+    presets: `service/deck_options.py` always sends `removed_config_ids=[]`.
 - **Phones on the home network (desktop app).** Off by default; the user turns
   it on in Settings (`api/sharing.py`). Other devices must pair with the
   6-digit code (rate-limited); only hashes of device tokens are stored
@@ -66,7 +67,9 @@ than any feature.**
 - `backend/api/`: thin FastAPI layer. All collection access goes through
   `CollectionHost.run()`, which runs on one dedicated thread (Collection isn't
   thread-safe). Run uvicorn with **one worker only**.
-- Use Anki's own APIs, never a reimplementation: v3 scheduler
+- Use Anki's own APIs, never a reimplementation (deck options via
+  `get_deck_configs_for_update` / `update_deck_configs`, adding via
+  `defaults_for_adding` / `add_note`, media via `media.write_data`): v3 scheduler
   (`sched.get_queued_cards`, `describe_next_states`, `answer_card`),
   `sched.deck_due_tree`, `card.render_output`, `col.undo`. Before using an Anki
   method, check its source in `.venv/lib/python3*/site-packages/anki/`. For

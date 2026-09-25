@@ -29,6 +29,7 @@ def note_for_edit(col: Collection, note_id: int) -> NoteForEdit:
     return NoteForEdit(
         note_id=note.id,
         notetype=nt["name"],
+        is_cloze=nt["type"] == MODEL_CLOZE,
         fields=[NoteField(name=name, html=value) for name, value in note.items()],
         tags=list(note.tags),
         css=nt["css"],

@@ -6,14 +6,16 @@ import { useTheme } from '../../themes/ThemeProvider'
 import { Button } from '../Button'
 import { Kbd } from '../Kbd'
 import { Sheet } from '../Sheet'
-import { modKey } from '../../lib/platform'
+import { isApple, modKey } from '../../lib/platform'
 import { useSync } from '../../lib/sync'
 import editorCss from './editor.css?raw'
 import runtimeJs from './editor-runtime.js?raw'
+import { handleEditorUpload } from './uploads'
 
 const CSP = "default-src * data: blob: 'unsafe-inline'; connect-src 'none'; form-action 'none'"
 
-function srcDoc(mediaBase: string): string {
+// eslint-disable-next-line react-refresh/only-export-components
+export function srcDoc(mediaBase: string): string {
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
   return `<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -28,6 +30,8 @@ function srcDoc(mediaBase: string): string {
 <button type="button" data-cmd="subscript" title="Subscript">x₂</button>
 <span class="sep"></span>
 <button type="button" data-cmd="removeFormat" title="Clear formatting">Clear</button>
+<span class="sep"></span>
+<button type="button" data-cmd="cloze" hidden title="Cloze deletion (${modKey}⇧C; add ${isApple ? '⌥' : 'Alt'} for the same number)">[…]</button>
 </div><div id="fields"></div>
 <script>${runtimeJs.replace(/<\/script/gi, '<\\/script')}</script></body></html>`
 }
@@ -119,15 +123,20 @@ export function NoteEditor({ noteId, open, onClose, onSaved }: Props) {
         ready.current = true
         sendToFrame(themeMsg())
         const n = latest.current.note
-        if (n) sendToFrame({ type: 'load', fields: n.fields })
+        if (n) {
+          sendToFrame({ type: 'mode', cloze: n.is_cloze })
+          sendToFrame({ type: 'load', fields: n.fields })
+        }
       } else if (msg.type === 'field') {
         const original = latest.current.note?.fields.find((f) => f.name === msg.name)?.html
-        setChanged((c) => {
-          const next = { ...c }
-          if (msg.html === original) delete next[msg.name]
-          else next[msg.name] = msg.html
-          return next
-        })
+        // Update the ref right away: a "save" can follow before React re-renders.
+        const next = { ...latest.current.changed }
+        if (msg.html === original) delete next[msg.name]
+        else next[msg.name] = msg.html
+        latest.current = { ...latest.current, changed: next }
+        setChanged(next)
+      } else if (msg.type === 'upload') {
+        void handleEditorUpload(backend, frame.current, msg).then((err) => err && setError(err))
       } else if (msg.type === 'save') void save()
       else if (msg.type === 'close') requestClose()
     }
@@ -137,7 +146,10 @@ export function NoteEditor({ noteId, open, onClose, onSaved }: Props) {
 
   // Note arrived after the frame was ready.
   useEffect(() => {
-    if (note && ready.current) sendToFrame({ type: 'load', fields: note.fields })
+    if (note && ready.current) {
+      sendToFrame({ type: 'mode', cloze: note.is_cloze })
+      sendToFrame({ type: 'load', fields: note.fields })
+    }
   }, [note])
 
   useEffect(() => {
@@ -169,7 +181,7 @@ export function NoteEditor({ noteId, open, onClose, onSaved }: Props) {
             <Button variant="ghost" onClick={requestClose}>
               Cancel
             </Button>
-            <Button variant="primary" onClick={() => void save()} disabled={!dirty || saving}>
+            <Button variant="primary" onClick={() => sendToFrame({ type: 'flush' })} disabled={!dirty || saving}>
               {saving ? 'Saving…' : 'Save'}
               <kbd className="kbd kbd--on-accent">{modKey}↵</kbd>
             </Button>
@@ -185,7 +197,7 @@ export function NoteEditor({ noteId, open, onClose, onSaved }: Props) {
             value={tags}
             onChange={(e) => setTags(e.target.value)}
             onKeyDown={(e) => {
-              if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') void save()
+              if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') sendToFrame({ type: 'flush' })
             }}
             placeholder="space-separated"
             autoCapitalize="off"

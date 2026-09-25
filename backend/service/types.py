@@ -287,6 +287,7 @@ class NoteField:
 class NoteForEdit:
     note_id: int
     notetype: str
+    is_cloze: bool
     fields: list[NoteField]
     tags: list[str]
     css: str
@@ -347,6 +348,8 @@ class DeletedDeck:
     name: str
     cards: int
     """Cards that were deleted with the deck (and its subdecks)."""
+    undo_label: str
+    """Pass to `undo_step` to undo exactly this deletion."""
 
 
 @dataclass

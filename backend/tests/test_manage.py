@@ -46,9 +46,17 @@ def test_create_rename_delete_deck(client: TestClient) -> None:
     assert count > 0
     before = client.get("/api/info").json()["card_count"]
     deleted = client.delete(f"/api/decks/{cardio}").json()
-    assert deleted == {"name": "Step 1::Cardio", "cards": count}
+    assert deleted["name"] == "Step 1::Cardio" and deleted["cards"] == count
     assert client.get("/api/info").json()["card_count"] == before - count
     assert client.delete("/api/decks/1").status_code == 422  # Default
+
+    # Undo brings the deck and its cards back...
+    assert client.post("/api/undo-step", json={"label": deleted["undo_label"]}).status_code == 200
+    assert client.get("/api/info").json()["card_count"] == before
+    # ...but only while the deletion is still the last change.
+    again = client.delete(f"/api/decks/{cardio}").json()
+    client.post("/api/decks", json={"name": "Something else"})
+    assert client.post("/api/undo-step", json={"label": again["undo_label"]}).status_code == 409
 
 
 # Deck options

@@ -412,6 +412,16 @@ async def delete_deck(request: Request, deck_id: int) -> DeletedDeck:
     return await _host(request).run(lambda col: service.delete_deck(col, deck_id))
 
 
+class UndoStep(BaseModel):
+    label: str = Field(min_length=1, max_length=200)
+
+
+@app.post("/api/undo-step")
+async def undo_step(request: Request, body: UndoStep) -> UndoResult:
+    """Undo one specific step (an "Undo" button in a notice), only if it's still the last one."""
+    return await _host(request).run(lambda col: service.undo_step(col, body.label))
+
+
 @app.get("/api/decks/{deck_id}/options")
 async def get_deck_options(request: Request, deck_id: int) -> DeckOptions:
     return await _host(request).run(lambda col: service.deck_options.deck_options(col, deck_id))
