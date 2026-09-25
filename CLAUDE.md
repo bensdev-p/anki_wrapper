@@ -38,6 +38,15 @@ than any feature.**
     (`python -m anki.syncserver`, `$ROUNDS_SYNC_ENDPOINT`), never real AnkiWeb.
   - No operation may call `col.mod_schema()` or change note types. A schema
     change forces a one-way sync.
+- **Phones on the home network (desktop app).** Off by default; the user turns
+  it on in Settings (`api/sharing.py`). Other devices must pair with the
+  6-digit code (rate-limited); only hashes of device tokens are stored
+  (`<data>/sharing.json`, 0600). Signing in, uploading and the sharing
+  settings themselves are for the computer only (`_require_local`). Card
+  media for phones goes through `/api/m/<token>/` because the sandboxed card
+  iframe can't send cookies. The request guard in `api/main.py` also refuses
+  other websites (Origin check) and, in the desktop app, unknown Host names
+  (DNS rebinding). Don't weaken any of this.
 - Never commit anything under `data/`, or any `.anki2`, `.colpkg` or `.apkg` file.
 - Tests and experiments use their own collections under `data/` (e.g.
   `data/.pytest/`), never `data/dev` or `data/demo` in place.

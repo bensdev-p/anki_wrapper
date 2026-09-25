@@ -7,6 +7,8 @@ Run (single worker; the collection must only be opened once):
 from __future__ import annotations
 
 import asyncio
+import io
+import ipaddress
 import mimetypes
 import os
 from collections.abc import AsyncIterator
@@ -15,14 +17,15 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import service
+from version import __version__
 from service.stats import MAX_DAYS as STATS_MAX_DAYS
-from safety import DEV_COLLECTION, REPO_ROOT, desktop_mode, is_sync_collection, resolve_collection_path
+from safety import DEV_COLLECTION, REPO_ROOT, desktop_mode, is_sync_collection, resolve_collection_path, synced_dir
 from service.types import (
     AnswerResult,
     BrowsePage,
@@ -37,6 +40,7 @@ from service.types import (
 )
 
 from .host import CollectionHost
+from .sharing import COOKIE, COOKIE_MAX_AGE, PairingLocked, Sharing, SharingStatus
 from .sync_manager import AuthFailed, SyncManager, SyncStatus
 
 # SVG and some audio types aren't in every system's mime table.
@@ -75,10 +79,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     host.open()
     app.state.host = host
     app.state.sync = SyncManager(host)
+    # Phones on the home network: a desktop-app feature (the Pi is on the network anyway).
+    app.state.sharing = Sharing(synced_dir().parent, app) if desktop_mode() else None  # the app's data folder
+    if app.state.sharing:
+        await app.state.sharing.start()
     backups = None if host.path == DEV_COLLECTION.resolve() else asyncio.create_task(_periodic_backups(host))
     try:
         yield
     finally:
+        if app.state.sharing:
+            await app.state.sharing.stop()
         if backups:
             backups.cancel()
         await app.state.sync.wait()
@@ -121,6 +131,54 @@ def _require_local(request: Request) -> None:
         raise HTTPException(403, "Do this on the computer running Rounds.")
 
 
+def _host_allowed(host: str) -> bool:
+    """IP addresses, localhost and Bonjour (.local) names only.
+
+    The desktop app runs on someone's everyday computer. Refusing other host
+    names stops DNS-rebinding tricks, where a web page on some other site
+    points its own name at 127.0.0.1 to read this server's responses.
+    """
+    name = host.rsplit(":", 1)[0].strip("[]").lower() if not host.startswith("[") else host[1:].split("]")[0]
+    if name in ("localhost", "testserver") or name.endswith(".local"):
+        return True
+    try:
+        ipaddress.ip_address(name)
+        return True
+    except ValueError:
+        return False
+
+
+def _same_origin(request: Request) -> bool:
+    """A state-changing request must come from this app's own pages, not another site."""
+    origin = request.headers.get("origin")
+    if not origin or origin == "null":
+        return origin is None
+    return origin.split("://", 1)[-1].rstrip("/") == request.headers.get("host", "")
+
+
+# Paths a phone may use before pairing: the pairing call, and media by token.
+_UNPAIRED_OK = ("/api/pair", "/api/m/")
+
+
+@app.middleware("http")
+async def _guard(request: Request, call_next):  # type: ignore[no-untyped-def]
+    sharing: Sharing | None = getattr(request.app.state, "sharing", None)
+    path = request.url.path
+    if sharing is not None and not _host_allowed(request.headers.get("host", "")):
+        return JSONResponse({"error": "BadHost", "detail": "Open Rounds by its IP address or .local name."}, 403)
+    if request.method not in ("GET", "HEAD", "OPTIONS") and not _same_origin(request):
+        return JSONResponse({"error": "CrossOrigin", "detail": "Requests from other websites aren’t allowed."}, 403)
+    if (
+        sharing is not None
+        and path.startswith("/api/")
+        and not path.startswith(_UNPAIRED_OK)
+        and not _is_local(request)
+        and not sharing.device_ok(request.cookies.get(COOKIE))
+    ):
+        return JSONResponse({"error": "PairingRequired", "detail": "Enter the code shown on your computer."}, 401)
+    return await call_next(request)
+
+
 @app.exception_handler(service.ServiceError)
 async def _service_error(_: Request, exc: service.ServiceError) -> JSONResponse:
     status = 404 if isinstance(exc, service.NotFound) else 422 if isinstance(exc, service.browser.InvalidSearch) else 409
@@ -144,6 +202,11 @@ class Info:
     sync_enabled: bool
     desktop: bool
     """Running as the desktop app (rather than the Pi server)."""
+    media_path: str
+    """Where card media is served for this client (a token path for paired phones)."""
+    remote: bool
+    """This client is another device (a paired phone), not the computer running Rounds."""
+    version: str
 
 
 @app.get("/api/info")
@@ -156,7 +219,17 @@ async def info(request: Request) -> Info:
         card_count=count,
         sync_enabled=request.app.state.sync.enabled,
         desktop=desktop_mode(),
+        media_path=_media_path(request),
+        remote=not _is_local(request),
+        version=__version__,
     )
+
+
+def _media_path(request: Request) -> str:
+    sharing: Sharing | None = request.app.state.sharing
+    if sharing is not None and not _is_local(request):
+        return f"/api/m/{sharing.state.media_token}/"
+    return "/api/media/"
 
 
 @app.get("/api/decks")
@@ -506,12 +579,104 @@ async def sync_full_upload(request: Request) -> SyncStatus:
     return await manager.status(True)
 
 
+# Using Rounds on a phone (desktop app)
+##########################################################################
+
+
+def _sharing(request: Request) -> Sharing:
+    sharing: Sharing | None = request.app.state.sharing
+    if sharing is None:
+        raise HTTPException(409, "Sharing is a desktop app feature.")
+    return sharing
+
+
+@app.get("/api/sharing")
+async def sharing_status(request: Request) -> SharingStatus:
+    _require_local(request)
+    return _sharing(request).status()
+
+
+class SharingUpdate(BaseModel):
+    enabled: bool
+
+
+@app.post("/api/sharing")
+async def sharing_update(request: Request, body: SharingUpdate) -> SharingStatus:
+    _require_local(request)
+    sharing = _sharing(request)
+    await sharing.set_enabled(body.enabled)
+    return sharing.status()
+
+
+@app.post("/api/sharing/new-code")
+async def sharing_new_code(request: Request) -> SharingStatus:
+    """New code; every paired device has to pair again."""
+    _require_local(request)
+    sharing = _sharing(request)
+    sharing.new_code()
+    return sharing.status()
+
+
+@app.get("/api/sharing/qr.svg")
+async def sharing_qr(request: Request, url: str = Query(..., max_length=300)) -> Response:
+    """QR code that opens `url` on the phone and pairs it (the code rides in the #fragment)."""
+    import segno
+
+    _require_local(request)
+    sharing = _sharing(request)
+    if url not in sharing.status().urls:
+        raise HTTPException(422, "Unknown address.")
+    qr = segno.make(f"{url}#pair={sharing.state.code}", error="m")
+    out = io.BytesIO()
+    # A standalone SVG (with its namespace), so it works as an <img>.
+    qr.save(out, kind="svg", scale=6, border=2, dark="#000", light="#fff", xmldecl=False)
+    return Response(out.getvalue(), media_type="image/svg+xml", headers={"Cache-Control": "no-store"})
+
+
+class PairRequest(BaseModel):
+    code: str = Field(min_length=1, max_length=12)
+
+
+@dataclass
+class PairResult:
+    paired: bool
+
+
+@app.post("/api/pair")
+async def pair(request: Request, body: PairRequest) -> JSONResponse:
+    """Pair this phone with the code shown on the computer; remembered with a cookie."""
+    sharing = _sharing(request)
+    try:
+        token = sharing.pair(body.code)
+    except PairingLocked as err:
+        raise HTTPException(429, str(err)) from err
+    except PermissionError as err:
+        raise HTTPException(401, str(err)) from err
+    response = JSONResponse({"paired": True})
+    response.set_cookie(COOKIE, token, max_age=COOKIE_MAX_AGE, httponly=True, samesite="lax", path="/")
+    return response
+
+
+@app.get("/api/m/{token}/{filename:path}")
+async def media_by_token(request: Request, token: str, filename: str) -> FileResponse:
+    """Media for paired phones: the sandboxed card frame can't send cookies."""
+    sharing: Sharing | None = request.app.state.sharing
+    if sharing is None or not sharing.media_ok(token):
+        raise HTTPException(status_code=404)
+    return _media_file(request, filename)
+
+
 @app.get("/api/media/{filename:path}")
 async def media(request: Request, filename: str) -> FileResponse:
     """Files from the collection's media folder, so card HTML can reference them.
 
     Doesn't touch the collection, so it runs outside the collection thread.
+    Paired phones use /api/m/<token>/ instead (the guard refuses them here).
     """
+    return _media_file(request, filename)
+
+
+def _media_file(request: Request, filename: str) -> FileResponse:
     media_dir = _host(request).media_dir
     assert media_dir is not None
     path = (media_dir / filename).resolve()

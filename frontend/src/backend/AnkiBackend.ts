@@ -11,6 +11,7 @@ import type {
   DeckNode,
   Rating,
   SearchResult,
+  SharingStatus,
   StatsSummary,
   SyncStatus,
   StudyState,
@@ -72,6 +73,15 @@ export interface AnkiBackend {
   syncLogin(username: string, password: string): Promise<SyncStatus>
   /** Forget the saved sign-in; the collection on this computer stays. */
   syncLogout(): Promise<SyncStatus>
+  /** Using the desktop app from a phone (only from the computer running Rounds). */
+  sharingStatus(): Promise<SharingStatus>
+  setSharing(enabled: boolean): Promise<SharingStatus>
+  /** New pairing code; every paired device has to pair again. */
+  newSharingCode(): Promise<SharingStatus>
+  /** URL of a QR code that opens `url` on the phone and pairs it. */
+  sharingQrUrl(url: string): string
+  /** Pair this device with the code shown on the computer. */
+  pair(code: string): Promise<void>
   /** Absolute base URL that card HTML media references resolve against. */
   mediaBaseUrl(): string
 }

@@ -1,4 +1,4 @@
-import { BarChart3, Layers, Search } from 'lucide-react'
+import { BarChart3, Layers, Search, Settings } from 'lucide-react'
 import { routeHash, STATS_DEFAULT_DAYS, type Route } from '../lib/router'
 
 /** Top-level sections, as a segmented control in the top bar. */
@@ -12,6 +12,7 @@ export function AppNav({ route, variant = 'top' }: { route: Route; variant?: 'to
       icon: BarChart3,
       href: routeHash({ name: 'stats', deckId: null, days: STATS_DEFAULT_DAYS }),
     },
+    { key: 'settings', label: 'Settings', icon: Settings, href: routeHash({ name: 'settings' }) },
   ]
   return (
     <nav className={variant === 'tabs' ? 'tab-bar' : 'app-nav'} aria-label="Sections">

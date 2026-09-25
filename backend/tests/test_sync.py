@@ -293,13 +293,17 @@ def test_desktop_uploads_to_empty_ankiweb(col_path: Path, server: str, monkeypat
         # Phones on the home network can't sign in or upload. (No `with`: the
         # app is already running; a second lifespan would reopen the collection.)
         phone = TestClient(app, client=("192.168.1.20", 5000))
+        assert phone.get("/api/sync").status_code == 401  # not paired yet
+        code = client.get("/api/sharing").json()["code"]
+        assert phone.post("/api/pair", json={"code": code}).status_code == 200
         assert phone.get("/api/sync").json()["can_upload"] is False
         assert phone.post("/api/sync/full-upload").status_code == 403
         assert phone.post("/api/sync/logout").status_code == 403
         # ...including through the dev proxy, which forwards the real address.
         proxied = {"X-Forwarded-For": "192.168.1.20"}
-        assert client.post("/api/sync/full-upload", headers=proxied).status_code == 403
-        assert client.post("/api/sync/login", json={"username": "x", "password": "y"}, headers=proxied).status_code == 403
+        # (refused as unpaired, 401, or as not this computer, 403)
+        assert client.post("/api/sync/full-upload", headers=proxied).status_code in (401, 403)
+        assert client.post("/api/sync/login", json={"username": "x", "password": "y"}, headers=proxied).status_code in (401, 403)
 
         client.post("/api/sync/full-upload")
         status = _settle(client)

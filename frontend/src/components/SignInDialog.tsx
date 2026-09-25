@@ -20,14 +20,15 @@ export function SignInDialog({ open, onClose }: { open: boolean; onClose(): void
   const formId = useId()
 
   useEffect(() => {
-    if (open) {
-      window.setTimeout(() => emailRef.current?.focus(), 30)
-    } else {
-      // Clear on close (not on open, which would race with typing).
-      setPassword('')
-      setError(null)
-    }
+    if (open) window.setTimeout(() => emailRef.current?.focus(), 30)
   }, [open])
+
+  // Forget the password whenever the dialog closes.
+  const close = () => {
+    setPassword('')
+    setError(null)
+    onClose()
+  }
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -36,8 +37,7 @@ export function SignInDialog({ open, onClose }: { open: boolean; onClose(): void
     setError(null)
     try {
       await login(email.trim(), password)
-      setPassword('')
-      onClose()
+      close()
     } catch (err) {
       setError(
         err instanceof BackendError && err.status !== 0 ? err.message : 'Couldn’t reach Rounds. Is the app still running?',
@@ -50,11 +50,11 @@ export function SignInDialog({ open, onClose }: { open: boolean; onClose(): void
   return (
     <Dialog
       open={open}
-      onClose={() => !busy && onClose()}
+      onClose={() => !busy && close()}
       title="Sign in to AnkiWeb"
       actions={
         <>
-          <Button variant="ghost" onClick={onClose} disabled={busy}>
+          <Button variant="ghost" onClick={close} disabled={busy}>
             Cancel
           </Button>
           <Button variant="primary" type="submit" form={formId} disabled={busy || !email.trim() || !password}>

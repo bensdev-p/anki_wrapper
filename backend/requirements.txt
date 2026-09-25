@@ -2,6 +2,7 @@
 anki==26.9.2
 fastapi==0.141.1
 uvicorn==0.53.0
+segno==1.6.6            # QR code for pairing a phone (BSD)
 
 # dev / test
 pytest==9.1.1

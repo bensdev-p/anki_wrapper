@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App'
 import { HttpBackend } from './backend/httpBackend'
 import { BackendProvider } from './backend/context'
+import { PairingGate } from './components/PairingGate'
 import { ToastProvider } from './components/Toast'
 import { ThemeProvider } from './themes/ThemeProvider'
 import './styles/base.css'
@@ -16,7 +17,9 @@ createRoot(document.getElementById('root')!).render(
     <BackendProvider backend={backend}>
       <ThemeProvider>
         <ToastProvider>
-          <App />
+          <PairingGate>
+            <App />
+          </PairingGate>
         </ToastProvider>
       </ThemeProvider>
     </BackendProvider>

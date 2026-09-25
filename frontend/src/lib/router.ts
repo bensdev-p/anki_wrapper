@@ -6,10 +6,12 @@ export type Route =
   | { name: 'study'; deckId: number }
   | { name: 'stats'; deckId: number | null; days: number }
   | { name: 'browse'; q: string }
+  | { name: 'settings' }
 
 export const STATS_DEFAULT_DAYS = 90
 
 function parse(hash: string): Route {
+  if (hash.startsWith('#/settings')) return { name: 'settings' }
   const study = hash.match(/^#\/study\/(\d+)/)
   if (study) return { name: 'study', deckId: Number(study[1]) }
   if (hash.startsWith('#/browse')) {
@@ -38,6 +40,8 @@ export function routeHash(route: Route): string {
     }
     case 'browse':
       return route.q ? `#/browse?${new URLSearchParams({ q: route.q })}` : '#/browse'
+    case 'settings':
+      return '#/settings'
     default:
       return '#/'
   }

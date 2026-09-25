@@ -13,18 +13,25 @@ import type {
   DeckNode,
   Rating,
   SearchResult,
+  SharingStatus,
   StatsSummary,
   SyncStatus,
   StudyState,
   UndoResponse,
 } from './types'
 
+/** Fired when the server says this device must pair (e.g. the code was changed). */
+export const PAIRING_REQUIRED_EVENT = 'rounds:pairing-required'
+
 /** AnkiBackend over the FastAPI server (same origin; Vite proxies /api in dev). */
 export class HttpBackend implements AnkiBackend {
   private readonly base: string
+  /** Paired phones get media under a token path; see info(). */
+  private mediaPath: string
 
   constructor(base = '/api') {
     this.base = base
+    this.mediaPath = `${base}/media/`
   }
 
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -51,12 +58,17 @@ export class HttpBackend implements AnkiBackend {
       } catch {
         // non-JSON error body
       }
+      if (kind === 'PairingRequired') window.dispatchEvent(new Event(PAIRING_REQUIRED_EVENT))
       throw new BackendError(res.status, kind, detail)
     }
     return res.json() as Promise<T>
   }
 
-  info = () => this.request<CollectionInfo>('/info')
+  info = async () => {
+    const info = await this.request<CollectionInfo>('/info')
+    this.mediaPath = info.media_path
+    return info
+  }
   deckTree = () => this.request<DeckNode[]>('/decks')
   studyState = () => this.request<StudyState>('/study')
   selectDeck = (deckId: number) =>
@@ -108,5 +120,13 @@ export class HttpBackend implements AnkiBackend {
   syncLogin = (username: string, password: string) =>
     this.request<SyncStatus>('/sync/login', { method: 'POST', body: JSON.stringify({ username, password }) })
   syncLogout = () => this.request<SyncStatus>('/sync/logout', { method: 'POST' })
-  mediaBaseUrl = () => new URL(this.base + '/media/', window.location.href).href
+  sharingStatus = () => this.request<SharingStatus>('/sharing')
+  setSharing = (enabled: boolean) =>
+    this.request<SharingStatus>('/sharing', { method: 'POST', body: JSON.stringify({ enabled }) })
+  newSharingCode = () => this.request<SharingStatus>('/sharing/new-code', { method: 'POST' })
+  sharingQrUrl = (url: string) => `${this.base}/sharing/qr.svg?${new URLSearchParams({ url })}`
+  pair = async (code: string) => {
+    await this.request<{ paired: boolean }>('/pair', { method: 'POST', body: JSON.stringify({ code }) })
+  }
+  mediaBaseUrl = () => new URL(this.mediaPath, window.location.href).href
 }

@@ -106,6 +106,25 @@ export interface CollectionInfo {
   sync_enabled: boolean
   /** Running as the desktop app (rather than the Pi server). */
   desktop: boolean
+  /** Where card media is served for this client (a token path for paired phones). */
+  media_path: string
+  /** This client is another device (a paired phone), not the computer running Rounds. */
+  remote: boolean
+  version: string
+}
+
+/** Using the desktop app from a phone on the same Wi-Fi (mirror api/sharing.py). */
+export interface SharingStatus {
+  enabled: boolean
+  running: boolean
+  error: string | null
+  port: number
+  /** 6-digit pairing code. */
+  code: string
+  /** Addresses to open on the phone (IP first). */
+  urls: string[]
+  /** Paired devices. */
+  devices: number
 }
 
 // Statistics (mirror service/types.py)
