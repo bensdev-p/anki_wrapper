@@ -146,3 +146,16 @@ def test_sharing_is_desktop_only(col_path: Path, monkeypatch: pytest.MonkeyPatch
         assert client.get("/api/sharing").status_code == 409
         # The Pi keeps serving its home network without pairing, as before.
         assert TestClient(app, client=PHONE).get("/api/decks").status_code == 200
+
+
+def test_busy_port_moves_to_the_next_one(desktop: tuple[TestClient, Path]) -> None:
+    client, root = desktop
+    port = client.get("/api/sharing").json()["port"]
+    with socket.socket() as blocker:
+        blocker.bind(("0.0.0.0", port))
+        blocker.listen()
+        status = client.post("/api/sharing", json={"enabled": True}).json()
+        assert status["running"] and status["port"] != port and status["error"] is None
+        assert client.get("/api/decks").status_code == 200  # the app itself is fine
+    client.post("/api/sharing", json={"enabled": False})
+    assert json.loads((root / "sharing.json").read_text())["port"] == status["port"]

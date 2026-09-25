@@ -124,6 +124,15 @@ class Sharing:
         if not self.state.enabled or self._task is not None:
             return
         self.error = None
+        port = _free_port_from(self.state.port)
+        if port is None:
+            self.error = f"Couldn’t find a free port near {self.state.port}. Is another copy of Rounds running?"
+            return
+        if port != self.state.port:
+            # Taken by something else: use the next free one (phones pair again).
+            log.info("sharing port %s busy; using %s", self.state.port, port)
+            self.state.port = port
+            self._save()
         config = uvicorn.Config(
             self.app, host="0.0.0.0", port=self.state.port, lifespan="off", log_config=None, access_log=False
         )
@@ -142,7 +151,9 @@ class Sharing:
         if self._server is not None:
             self._server.should_exit = True
         if self._task is not None:
-            with contextlib.suppress(Exception):
+            # uvicorn exits with SystemExit when it can't bind; never let that
+            # (or anything else from the listener) take the app down.
+            with contextlib.suppress(BaseException):
                 await asyncio.wait_for(self._task, timeout=10)
         self._server = None
         self._task = None
@@ -199,6 +210,20 @@ class Sharing:
             urls=[f"http://{host}:{self.state.port}/" for host in lan_hosts()],
             devices=len(self.state.device_hashes),
         )
+
+
+def _free_port_from(port: int, tries: int = 10) -> int | None:
+    """`port` if it can be listened on (all interfaces), else the next free one."""
+    for candidate in range(port, port + tries):
+        with socket.socket() as s:
+            if os.name != "nt":
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                s.bind(("0.0.0.0", candidate))
+                return candidate
+            except OSError:
+                continue
+    return None
 
 
 def lan_hosts() -> list[str]:
