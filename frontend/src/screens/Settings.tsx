@@ -1,4 +1,4 @@
-import { Check, Copy, Download, FolderOpen, LogIn, RefreshCw, RotateCcw, Save, Smartphone, Upload } from 'lucide-react'
+import { Check, Copy, Download, FolderOpen, LogIn, RefreshCw, RotateCcw, Save, Search, Smartphone, Upload } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useBackend } from '../backend/context'
 import { BackendError } from '../backend/AnkiBackend'
@@ -11,12 +11,18 @@ import { Switch } from '../components/Switch'
 import { useToast } from '../components/Toast'
 import { openImport } from '../lib/importer'
 import { useTheme } from '../themes/ThemeProvider'
+import { EDITOR_FAMILIES } from '../themes/editorThemes'
 import { CORE_THEME_IDS, SYSTEM, type Theme } from '../themes/themes'
 import { inDesktopWindow, openExternal, openFolder } from '../lib/platform'
 import { relativeTime, useSync } from '../lib/sync'
 
 export function Settings() {
   const backend = useBackend()
+  useEffect(() => {
+    if (!window.location.hash.includes('appearance')) return
+    const id = window.setTimeout(() => document.getElementById('appearance')?.scrollIntoView({ block: 'start' }), 60)
+    return () => window.clearTimeout(id)
+  }, [])
   const [info, setInfo] = useState<CollectionInfo | null>(null)
 
   useEffect(() => {
@@ -388,23 +394,57 @@ function ThemeCard({ theme, selected, onPick }: { theme: Theme; selected: boolea
 }
 
 function AppearanceSection() {
-  const { choice, themes, setChoice } = useTheme()
-  const groups: [string, Theme[]][] = [
+  const { choice, theme, themes, setChoice } = useTheme()
+  const [kind, setKind] = useState<'all' | 'light' | 'dark'>('all')
+  const [query, setQuery] = useState('')
+  const q = query.trim().toLowerCase()
+  const match = (t: Theme) =>
+    (kind === 'all' || t.kind === kind) && (!q || `${t.name} ${t.family ?? 'rounds'} ${t.description}`.toLowerCase().includes(q))
+  const all: [string, Theme[]][] = [
     ['Rounds', themes.filter((t) => CORE_THEME_IDS.includes(t.id))],
-    ['Editor themes', themes.filter((t) => !CORE_THEME_IDS.includes(t.id))],
+    ...EDITOR_FAMILIES.map((f): [string, Theme[]] => [f, themes.filter((t) => t.family === f)]),
   ]
+  const groups = all
+    .map(([label, list]): [string, Theme[]] => [label, list.filter(match)])
+    .filter(([, list]) => list.length > 0)
+
   return (
-    <section className="settings-card">
+    <section className="settings-card" id="appearance">
       <div className="settings-card__head">
         <div>
           <h2>Appearance</h2>
-          <p className="settings-card__text">Cards follow along: dark themes turn on your decks’ night mode.</p>
+          <p className="settings-card__text">
+            {themes.length} themes. Cards follow along: dark themes turn on your decks’ night mode.
+          </p>
         </div>
         <label className="options__children">
-          <input type="checkbox" checked={choice === SYSTEM} onChange={(e) => setChoice(e.target.checked ? SYSTEM : themes[0].id)} />
+          <input type="checkbox" checked={choice === SYSTEM} onChange={(e) => setChoice(e.target.checked ? SYSTEM : theme.id)} />
           Match system light/dark
         </label>
       </div>
+      <div className="theme-filter">
+        <div className="chips" role="radiogroup" aria-label="Show">
+          {(['all', 'dark', 'light'] as const).map((k) => (
+            <button key={k} className="chip" role="radio" aria-checked={kind === k} onClick={() => setKind(k)}>
+              {k === 'all' ? 'All' : k === 'dark' ? 'Dark' : 'Light'}
+            </button>
+          ))}
+        </div>
+        <label className="filter theme-filter__search">
+          <Search size={15} className="filter__icon" aria-hidden="true" />
+          <input
+            className="filter__input"
+            type="search"
+            placeholder="Find a theme"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            aria-label="Find a theme"
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </label>
+      </div>
+      {groups.length === 0 && <p className="settings-card__hint">No themes match “{query}”.</p>}
       {groups.map(([label, list]) => (
         <div key={label} className="theme-grid__group">
           <h3 className="theme-grid__label">{label}</h3>

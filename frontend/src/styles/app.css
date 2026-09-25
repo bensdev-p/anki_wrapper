@@ -3530,3 +3530,26 @@
   font-weight: 550;
   color: var(--text);
 }
+
+.theme-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+}
+.theme-filter__search {
+  flex: 0 1 260px;
+}
+@media (max-width: 640px) {
+  .theme-filter__search {
+    flex-basis: 100%;
+  }
+  .theme-filter__search input {
+    font-size: 16px;
+  }
+}
+#appearance {
+  scroll-margin-top: calc(56px + var(--sp-4) + env(safe-area-inset-top));
+}

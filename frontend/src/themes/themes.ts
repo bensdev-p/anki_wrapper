@@ -7,7 +7,7 @@
  * body classes inside the card iframe, which existing decks already style.
  */
 
-import { build, EDITOR_PALETTES } from './editorThemes'
+import { build, EDITOR_THEMES } from './editorThemes'
 
 export type TokenName =
   // surfaces
@@ -85,6 +85,8 @@ const FLAGS = {
 export interface Theme {
   id: string
   name: string
+  /** Group in the theme gallery (editor themes); Rounds' own have none. */
+  family?: string
   description: string
   kind: 'light' | 'dark'
   tokens: Record<TokenName, string>
@@ -359,7 +361,7 @@ export const THEMES: Theme[] = [
   sepia,
   dusk,
   highContrast,
-  ...EDITOR_PALETTES.map((t) => build(t.id, t.name, t.description, t.kind, t.palette, FLAGS)),
+  ...EDITOR_THEMES.map((t) => ({ ...build(t.id, t.name, t.description, t.kind, t.palette, FLAGS), family: t.family })),
 ]
 
 export const SYSTEM = 'system'

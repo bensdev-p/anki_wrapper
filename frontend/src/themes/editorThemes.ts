@@ -173,205 +173,197 @@ export function build(
 
 // -- the schemes -----------------------------------------------------------------
 // Colors from each scheme's published palette. Where a scheme's own "muted"
-// grey is too faint to read as text, a slightly lighter/darker step is used.
+// grey (or its text on a light background) is too faint to read comfortably,
+// a slightly stronger step is used; scripts/check_themes.mjs enforces this.
+// Variants that differ only in fonts or borders (No Italics, Italic,
+// Bordered) have the same colors, so they aren't repeated here.
 
-export const EDITOR_PALETTES: { id: string; name: string; description: string; kind: Kind; palette: EditorPalette }[] = [
-  {
-    id: 'one-dark',
-    name: 'One Dark',
-    description: 'Atom’s classic: slate and soft pastels',
-    kind: 'dark',
-    palette: {
-      bg: '#21252b', surface: '#282c34', raised: '#2c313a', border: '#3a3f4b',
-      text: '#d7dae0', muted: '#abb2bf', subtle: '#7f848e',
-      accent: '#61afef', red: '#e06c75', orange: '#d19a66', green: '#98c379', blue: '#61afef',
-    },
-  },
-  {
-    id: 'dracula',
-    name: 'Dracula',
-    description: 'Deep violet-grey with vivid pinks and purples',
-    kind: 'dark',
-    palette: {
-      bg: '#21222c', surface: '#282a36', raised: '#343746', border: '#44475a',
-      text: '#f8f8f2', muted: '#c3c6d4', subtle: '#8b93bf',
-      accent: '#bd93f9', red: '#ff5555', orange: '#ffb86c', green: '#50fa7b', blue: '#8be9fd',
-    },
-  },
-  {
-    id: 'night-owl',
-    name: 'Night Owl',
-    description: 'Midnight blue, made for late-night sessions',
-    kind: 'dark',
-    palette: {
-      bg: '#010e1a', surface: '#011627', raised: '#0b2942', border: '#1d3b53',
-      text: '#d6deeb', muted: '#a8b8cc', subtle: '#7e8fa3',
-      accent: '#82aaff', red: '#ef5350', orange: '#ffcb8b', green: '#addb67', blue: '#82aaff',
-    },
-  },
-  {
-    id: 'monokai',
-    name: 'Monokai Pro',
-    description: 'Warm charcoal with bright, punchy accents',
-    kind: 'dark',
-    palette: {
-      bg: '#221f22', surface: '#2d2a2e', raised: '#363337', border: '#403e41',
-      text: '#fcfcfa', muted: '#c1c0c0', subtle: '#939293',
-      accent: '#ffd866', red: '#ff6188', orange: '#fc9867', green: '#a9dc76', blue: '#78dce8',
-    },
-  },
-  {
-    id: 'palenight',
-    name: 'Material Palenight',
-    description: 'Material’s soft purple-blue night',
-    kind: 'dark',
-    palette: {
-      bg: '#1b1e2b', surface: '#292d3e', raised: '#32374d', border: '#3a3f58',
-      text: '#eeffff', muted: '#a6accd', subtle: '#7982b4',
-      accent: '#c792ea', red: '#f07178', orange: '#f78c6c', green: '#c3e88d', blue: '#82aaff',
-    },
-  },
-  {
-    id: 'github-dark',
-    name: 'GitHub Dark',
-    description: 'GitHub’s dark mode: crisp and neutral',
-    kind: 'dark',
-    palette: {
-      bg: '#010409', surface: '#0d1117', raised: '#161b22', border: '#30363d',
-      text: '#e6edf3', muted: '#9198a1', subtle: '#7d8590',
-      accent: '#4493f8', red: '#f85149', orange: '#d29922', green: '#3fb950', blue: '#58a6ff',
-    },
-  },
-  {
-    id: 'github-light',
-    name: 'GitHub Light',
-    description: 'GitHub’s light mode: bright and familiar',
-    kind: 'light',
-    palette: {
-      bg: '#f6f8fa', surface: '#ffffff', border: '#d1d9e0',
-      text: '#1f2328', muted: '#59636e', subtle: '#6e7781',
-      accent: '#0969da', red: '#cf222e', orange: '#9a6700', green: '#1a7f37', blue: '#0969da',
-    },
-  },
-  {
-    id: 'tokyo-night',
-    name: 'Tokyo Night',
-    description: 'Neon city lights on deep indigo',
-    kind: 'dark',
-    palette: {
-      bg: '#16161e', surface: '#1a1b26', raised: '#24283b', border: '#292e42',
-      text: '#c0caf5', muted: '#a9b1d6', subtle: '#737aa2',
-      accent: '#7aa2f7', red: '#f7768e', orange: '#ff9e64', green: '#9ece6a', blue: '#7aa2f7',
-    },
-  },
-  {
-    id: 'nord',
-    name: 'Nord',
-    description: 'Arctic, north-bluish calm',
-    kind: 'dark',
-    palette: {
-      bg: '#2b303b', surface: '#2e3440', raised: '#3b4252', border: '#434c5e',
-      text: '#eceff4', muted: '#d8dee9', subtle: '#9aa5b8',
-      accent: '#88c0d0', red: '#bf616a', orange: '#d08770', green: '#a3be8c', blue: '#81a1c1',
-    },
-  },
-  {
-    id: 'cobalt2',
-    name: 'Cobalt2',
-    description: 'Bold cobalt blue with golden highlights',
-    kind: 'dark',
-    palette: {
-      bg: '#15232d', surface: '#193549', raised: '#1f4662', border: '#234e6d',
-      text: '#ffffff', muted: '#c7d6e2', subtle: '#8fa9bd',
-      accent: '#ffc600', red: '#ff628c', orange: '#ff9d00', green: '#3ad900', blue: '#9effff',
-    },
-  },
-  {
-    id: 'synthwave',
-    name: 'SynthWave ’84',
-    description: 'Retro neon pink and cyan on dusky purple',
-    kind: 'dark',
-    palette: {
-      bg: '#1e1a2e', surface: '#262335', raised: '#2a2139', border: '#3b3052',
-      text: '#ffffff', muted: '#c9c5e0', subtle: '#8f8bb8',
-      accent: '#ff7edb', red: '#fe4450', orange: '#fede5d', green: '#72f1b8', blue: '#36f9f6',
-    },
-  },
-  {
-    id: 'ayu-mirage',
-    name: 'Ayu Mirage',
-    description: 'Muted slate with a warm golden accent',
-    kind: 'dark',
-    palette: {
-      bg: '#1c212b', surface: '#1f2430', raised: '#242936', border: '#33394a',
-      text: '#cccac2', muted: '#b0aea5', subtle: '#8a919e',
-      accent: '#ffcc66', red: '#f28779', orange: '#ffad66', green: '#87d96c', blue: '#73d0ff',
-    },
-  },
-  {
-    id: 'ayu-light',
-    name: 'Ayu Light',
-    description: 'Airy white with a warm orange accent',
-    kind: 'light',
-    palette: {
-      bg: '#f3f4f5', surface: '#fcfcfc', border: '#e1e3e6',
-      text: '#44494f', muted: '#5c6166', subtle: '#737b85',
-      accent: '#d9711a', red: '#d95050', orange: '#a86a00', green: '#4d7a00', blue: '#1f7ac2',
-    },
-  },
-  {
-    id: 'catppuccin-mocha',
-    name: 'Catppuccin Mocha',
-    description: 'Soothing pastels on a cozy dark base',
-    kind: 'dark',
-    palette: {
-      bg: '#181825', surface: '#1e1e2e', raised: '#313244', border: '#313244',
-      text: '#cdd6f4', muted: '#bac2de', subtle: '#9399b2',
-      accent: '#cba6f7', red: '#f38ba8', orange: '#fab387', green: '#a6e3a1', blue: '#89b4fa',
-    },
-  },
-  {
-    id: 'catppuccin-latte',
-    name: 'Catppuccin Latte',
-    description: 'Catppuccin’s gentle light pastels',
-    kind: 'light',
-    palette: {
-      bg: '#e6e9ef', surface: '#eff1f5', raised: '#f5f6f9', border: '#ccd0da',
-      text: '#4c4f69', muted: '#5c5f77', subtle: '#6c6f85',
-      accent: '#8839ef', red: '#d20f39', orange: '#b35b00', green: '#347d22', blue: '#1e66f5',
-    },
-  },
-  {
-    id: 'gruvbox',
-    name: 'Gruvbox Dark',
-    description: 'Retro, earthy and warm',
-    kind: 'dark',
-    palette: {
-      bg: '#1d2021', surface: '#282828', raised: '#32302f', border: '#3c3836',
-      text: '#ebdbb2', muted: '#d5c4a1', subtle: '#a89984',
-      accent: '#fabd2f', red: '#fb4934', orange: '#fe8019', green: '#b8bb26', blue: '#83a598',
-    },
-  },
-  {
-    id: 'solarized-dark',
-    name: 'Solarized Dark',
-    description: 'The precision palette, deep teal',
-    kind: 'dark',
-    palette: {
-      bg: '#00212b', surface: '#002b36', raised: '#073642', border: '#0b4351',
-      text: '#eee8d5', muted: '#93a1a1', subtle: '#7f9090',
-      accent: '#268bd2', red: '#dc322f', orange: '#cb4b16', green: '#859900', blue: '#268bd2',
-    },
-  },
-  {
-    id: 'solarized-light',
-    name: 'Solarized Light',
-    description: 'The precision palette, warm cream',
-    kind: 'light',
-    palette: {
-      bg: '#eee8d5', surface: '#fdf6e3', border: '#e0d9c4',
-      text: '#073642', muted: '#4f6069', subtle: '#657b83',
-      accent: '#268bd2', red: '#c42c2a', orange: '#a8420f', green: '#5f6e00', blue: '#1f73ad',
-    },
-  },
+export interface EditorTheme {
+  id: string
+  name: string
+  description: string
+  kind: Kind
+  /** Shown as a group in Settings → Appearance. */
+  family: string
+  palette: EditorPalette
+}
+
+// Compact form: bg, surface, raised, border | text, muted, subtle | accent, red, orange, green, blue
+function t(
+  family: string,
+  id: string,
+  name: string,
+  kind: Kind,
+  description: string,
+  [bg, surface, raised, border]: string[],
+  [text, muted, subtle]: string[],
+  [accent, red, orange, green, blue]: string[],
+): EditorTheme {
+  return { id, name, kind, description, family, palette: { bg, surface, raised, border, text, muted, subtle, accent, red, orange, green, blue } }
+}
+
+const GH = 'GitHub'
+const ODP = 'One Dark Pro'
+const DRA = 'Dracula'
+const TN = 'Tokyo Night'
+const AYU = 'Ayu'
+const SOP = 'Shades of Purple'
+const NO = 'Night Owl'
+const CAT = 'Catppuccin'
+const NOC = 'Noctis'
+const MOON = 'Moonlight'
+const MP = 'Monokai Pro'
+const MORE = 'More classics'
+
+// Noctis shares its syntax colors across its dark variants.
+const NOCTIS_DARK_SYNTAX = ['#e66533', '#e4b781', '#49e9a6', '#49ace9']
+const NOCTIS_LIGHT_SYNTAX = ['#d6301f', '#9c5c00', '#00806b', '#0070b8']
+
+export const EDITOR_THEMES: EditorTheme[] = [
+  // GitHub
+  t(GH, 'github-dark', 'GitHub Dark Default', 'dark', 'GitHub’s current dark mode: crisp and neutral',
+    ['#010409', '#0d1117', '#161b22', '#30363d'], ['#e6edf3', '#9198a1', '#7d8590'], ['#4493f8', '#f85149', '#d29922', '#3fb950', '#58a6ff']),
+  t(GH, 'github-dark-classic', 'GitHub Dark', 'dark', 'The original GitHub dark: softer charcoal',
+    ['#1f2428', '#24292e', '#2f363d', '#444d56'], ['#e1e4e8', '#b1bac4', '#959da5'], ['#79b8ff', '#f97583', '#ffab70', '#85e89d', '#79b8ff']),
+  t(GH, 'github-dark-dimmed', 'GitHub Dark Dimmed', 'dark', 'Lower contrast, easier in dim rooms',
+    ['#1c2128', '#22272e', '#2d333b', '#444c56'], ['#cdd9e5', '#adbac7', '#909dab'], ['#539bf5', '#e5534b', '#c69026', '#57ab5a', '#6cb6ff']),
+  t(GH, 'github-dark-hc', 'GitHub Dark High Contrast', 'dark', 'Maximum legibility on near-black',
+    ['#010409', '#0a0c10', '#151b23', '#7a828e'], ['#ffffff', '#f0f3f6', '#bdc4cc'], ['#71b7ff', '#ff9492', '#f0b72f', '#26cd4d', '#71b7ff']),
+  t(GH, 'github-dark-colorblind', 'GitHub Dark Colorblind', 'dark', 'Blue and orange in place of green and red',
+    ['#010409', '#0d1117', '#161b22', '#30363d'], ['#e6edf3', '#9198a1', '#7d8590'], ['#4493f8', '#ec8e2c', '#e3b341', '#58a6ff', '#bc8cff']),
+  t(GH, 'github-light', 'GitHub Light Default', 'light', 'GitHub’s current light mode: bright and familiar',
+    ['#f6f8fa', '#ffffff', '#ffffff', '#d1d9e0'], ['#1f2328', '#59636e', '#6e7781'], ['#0969da', '#cf222e', '#9a6700', '#1a7f37', '#0969da']),
+  t(GH, 'github-light-classic', 'GitHub Light', 'light', 'The original GitHub light',
+    ['#f6f8fa', '#ffffff', '#ffffff', '#e1e4e8'], ['#24292e', '#586069', '#6a737d'], ['#0366d6', '#d73a49', '#b05800', '#22863a', '#005cc5']),
+  t(GH, 'github-light-hc', 'GitHub Light High Contrast', 'light', 'Maximum legibility on white',
+    ['#e7ecf0', '#ffffff', '#ffffff', '#20252c'], ['#0e1116', '#1f2328', '#4b535d'], ['#0349b4', '#a0111f', '#744500', '#055d20', '#0349b4']),
+  t(GH, 'github-light-colorblind', 'GitHub Light Colorblind', 'light', 'Blue and orange in place of green and red',
+    ['#f6f8fa', '#ffffff', '#ffffff', '#d1d9e0'], ['#1f2328', '#59636e', '#6e7781'], ['#0969da', '#bc4c00', '#9a6700', '#0969da', '#8250df']),
+
+  // One Dark Pro
+  t(ODP, 'one-dark', 'One Dark Pro', 'dark', 'Atom’s classic: slate and soft pastels',
+    ['#21252b', '#282c34', '#2c313a', '#3a3f4b'], ['#d7dae0', '#abb2bf', '#7f848e'], ['#61afef', '#e06c75', '#d19a66', '#98c379', '#61afef']),
+  t(ODP, 'one-dark-darker', 'One Dark Pro Darker', 'dark', 'One Dark with deeper backgrounds',
+    ['#1b1e23', '#23272e', '#2a2f37', '#353b45'], ['#d7dae0', '#abb2bf', '#7f848e'], ['#61afef', '#e06c75', '#d19a66', '#98c379', '#61afef']),
+  t(ODP, 'one-dark-flat', 'One Dark Pro Flat', 'dark', 'One Dark with one flat background',
+    ['#282c34', '#282c34', '#2f343e', '#3b4048'], ['#d7dae0', '#abb2bf', '#7f848e'], ['#61afef', '#e06c75', '#d19a66', '#98c379', '#61afef']),
+  t(ODP, 'one-dark-mix', 'One Dark Pro Mix', 'dark', 'Darker chrome around One Dark panels',
+    ['#1b1d23', '#282c34', '#2c313a', '#3a3f4b'], ['#d7dae0', '#abb2bf', '#7f848e'], ['#c678dd', '#e06c75', '#d19a66', '#98c379', '#61afef']),
+
+  // Dracula
+  t(DRA, 'dracula', 'Dracula', 'dark', 'Deep violet-grey with vivid pinks and purples',
+    ['#21222c', '#282a36', '#343746', '#44475a'], ['#f8f8f2', '#c3c6d4', '#8b93bf'], ['#bd93f9', '#ff5555', '#ffb86c', '#50fa7b', '#8be9fd']),
+  t(DRA, 'dracula-soft', 'Dracula Soft', 'dark', 'Dracula with gentler, less saturated colors',
+    ['#22212c', '#2a2c37', '#353746', '#44475a'], ['#f6f6f4', '#c6c8d2', '#8f96bd'], ['#bf9eee', '#ee6666', '#ffb86c', '#62e884', '#97e1f1']),
+
+  // Tokyo Night
+  t(TN, 'tokyo-night', 'Tokyo Night', 'dark', 'Neon city lights on deep indigo',
+    ['#16161e', '#1a1b26', '#24283b', '#292e42'], ['#c0caf5', '#a9b1d6', '#737aa2'], ['#7aa2f7', '#f7768e', '#ff9e64', '#9ece6a', '#7aa2f7']),
+  t(TN, 'tokyo-night-storm', 'Tokyo Night Storm', 'dark', 'Tokyo Night with a stormier slate blue',
+    ['#1f2335', '#24283b', '#292e42', '#3b4261'], ['#c0caf5', '#a9b1d6', '#7d84ad'], ['#7aa2f7', '#f7768e', '#ff9e64', '#9ece6a', '#7aa2f7']),
+  t(TN, 'tokyo-night-moon', 'Tokyo Night Moon', 'dark', 'Moonlit Tokyo: softer blues and greens',
+    ['#1e2030', '#222436', '#2f334d', '#3b4261'], ['#c8d3f5', '#b4c2f0', '#828bb8'], ['#82aaff', '#ff757f', '#ff966c', '#c3e88d', '#82aaff']),
+  t(TN, 'tokyo-night-day', 'Tokyo Night Day', 'light', 'Tokyo Night by daylight',
+    ['#d0d5e3', '#e1e2e7', '#e9e9ed', '#c4c8da'], ['#273b73', '#3c4c80', '#5a6694'], ['#2a72d6', '#d20b45', '#965000', '#4a6531', '#2463c4']),
+
+  // Ayu
+  t(AYU, 'ayu-dark', 'Ayu Dark', 'dark', 'Near-black with a warm golden accent',
+    ['#0b0e14', '#0d1017', '#131721', '#1e232e'], ['#bfbdb6', '#acb6bf', '#7a8290'], ['#e6b450', '#f07178', '#ff8f40', '#aad94c', '#59c2ff']),
+  t(AYU, 'ayu-mirage', 'Ayu Mirage', 'dark', 'Muted slate with a warm golden accent',
+    ['#1c212b', '#1f2430', '#242936', '#33394a'], ['#cccac2', '#b0aea5', '#8a919e'], ['#ffcc66', '#f28779', '#ffad66', '#87d96c', '#73d0ff']),
+  t(AYU, 'ayu-light', 'Ayu Light', 'light', 'Airy white with a warm orange accent',
+    ['#f3f4f5', '#fcfcfc', '#fcfcfc', '#e1e3e6'], ['#44494f', '#5c6166', '#737b85'], ['#d9711a', '#d95050', '#a86a00', '#4d7a00', '#1f7ac2']),
+
+  // Shades of Purple
+  t(SOP, 'shades-of-purple', 'Shades of Purple', 'dark', 'Bold purples with a bright yellow accent',
+    ['#1e1e3f', '#2d2b55', '#322f5f', '#4d21fc'], ['#ffffff', '#c7c1f5', '#a599e9'], ['#fad000', '#ff628c', '#ff9d00', '#a5ff90', '#9effff']),
+  t(SOP, 'shades-of-purple-super-dark', 'Shades of Purple Super Dark', 'dark', 'The same purples, much darker',
+    ['#0c0b1a', '#15142b', '#1e1e3f', '#2d2b55'], ['#ffffff', '#c7c1f5', '#a599e9'], ['#fad000', '#ff628c', '#ff9d00', '#a5ff90', '#9effff']),
+
+  // Night Owl
+  t(NO, 'night-owl', 'Night Owl', 'dark', 'Midnight blue, made for late-night sessions',
+    ['#010e1a', '#011627', '#0b2942', '#1d3b53'], ['#d6deeb', '#a8b8cc', '#7e8fa3'], ['#82aaff', '#ef5350', '#ffcb8b', '#addb67', '#82aaff']),
+  t(NO, 'night-owl-light', 'Night Owl Light', 'light', 'Night Owl’s daytime counterpart',
+    ['#f0f0f0', '#fbfbfb', '#fbfbfb', '#d9d9d9'], ['#2f2e3f', '#403f53', '#5f6b75'], ['#406ec8', '#c4312f', '#a0540f', '#087d5c', '#3a63b8']),
+
+  // Catppuccin
+  t(CAT, 'catppuccin-latte', 'Catppuccin Latte', 'light', 'Catppuccin’s gentle light pastels',
+    ['#e6e9ef', '#eff1f5', '#f5f6f9', '#ccd0da'], ['#4c4f69', '#5c5f77', '#6c6f85'], ['#8839ef', '#d20f39', '#b35b00', '#347d22', '#1e66f5']),
+  t(CAT, 'catppuccin-frappe', 'Catppuccin Frappé', 'dark', 'Catppuccin’s medium-dark: soft blue-grey',
+    ['#292c3c', '#303446', '#414559', '#51576d'], ['#c6d0f5', '#b5bfe2', '#949cbb'], ['#ca9ee6', '#e78284', '#ef9f76', '#a6d189', '#8caaee']),
+  t(CAT, 'catppuccin-macchiato', 'Catppuccin Macchiato', 'dark', 'Catppuccin’s dark: deeper and richer',
+    ['#1e2030', '#24273a', '#363a4f', '#494d64'], ['#cad3f5', '#b8c0e0', '#939ab7'], ['#c6a0f6', '#ed8796', '#f5a97f', '#a6da95', '#8aadf4']),
+  t(CAT, 'catppuccin-mocha', 'Catppuccin Mocha', 'dark', 'Catppuccin’s darkest: cozy and calm',
+    ['#181825', '#1e1e2e', '#313244', '#313244'], ['#cdd6f4', '#bac2de', '#9399b2'], ['#cba6f7', '#f38ba8', '#fab387', '#a6e3a1', '#89b4fa']),
+
+  // Noctis
+  t(NOC, 'noctis', 'Noctis', 'dark', 'Deep teal-green with aqua accents',
+    ['#03191b', '#052529', '#073940', '#0d4a52'], ['#d3e3e5', '#b2cacd', '#87a7ab'], ['#40d4e7', ...NOCTIS_DARK_SYNTAX]),
+  t(NOC, 'noctis-azureus', 'Noctis Azureus', 'dark', 'Noctis in deep azure blue',
+    ['#051b29', '#07273b', '#0a3350', '#0e4163'], ['#d6e4ee', '#becfda', '#8fa9ba'], ['#49ace9', ...NOCTIS_DARK_SYNTAX]),
+  t(NOC, 'noctis-bordo', 'Noctis Bordo', 'dark', 'Noctis in warm burgundy-grey',
+    ['#272022', '#322a2d', '#413639', '#524448'], ['#e0d5d8', '#cbbec2', '#a6969b'], ['#e4b781', ...NOCTIS_DARK_SYNTAX]),
+  t(NOC, 'noctis-minimus', 'Noctis Minimus', 'dark', 'Noctis, pared back to cool slate',
+    ['#141e24', '#1b2932', '#233541', '#2f4553'], ['#dbe2e6', '#c5cdd3', '#95a4ae'], ['#5998c0', ...NOCTIS_DARK_SYNTAX]),
+  t(NOC, 'noctis-obscuro', 'Noctis Obscuro', 'dark', 'Noctis at its darkest',
+    ['#020e10', '#031417', '#05252a', '#0b3a41'], ['#d3e3e5', '#b3c9cc', '#86a6aa'], ['#40d4e7', ...NOCTIS_DARK_SYNTAX]),
+  t(NOC, 'noctis-sereno', 'Noctis Sereno', 'dark', 'A serene, lighter Noctis teal',
+    ['#04262a', '#062e32', '#0a3d42', '#0f4e54'], ['#d3e3e5', '#b2cacd', '#89aaae'], ['#40d4e7', ...NOCTIS_DARK_SYNTAX]),
+  t(NOC, 'noctis-uva', 'Noctis Uva', 'dark', 'Noctis in grape violet',
+    ['#211e35', '#292640', '#342f52', '#433d66'], ['#dcdaeb', '#c5c2d6', '#9c98bc'], ['#998ef1', ...NOCTIS_DARK_SYNTAX]),
+  t(NOC, 'noctis-viola', 'Noctis Viola', 'dark', 'Noctis in plum purple',
+    ['#281d33', '#30243d', '#3d2e4e', '#4d3a62'], ['#e2d8ec', '#ccbfd9', '#a595b8'], ['#bf8ef1', ...NOCTIS_DARK_SYNTAX]),
+  t(NOC, 'noctis-hibernus', 'Noctis Hibernus', 'light', 'Noctis light: wintry white and teal',
+    ['#e1e7e8', '#f4f6f6', '#ffffff', '#c9d6d8'], ['#003b42', '#205a61', '#4c7479'], ['#007c8e', ...NOCTIS_LIGHT_SYNTAX]),
+  t(NOC, 'noctis-lilac', 'Noctis Lilac', 'light', 'Noctis light: soft lilac',
+    ['#e5e3f1', '#f2f1f8', '#ffffff', '#d0cde6'], ['#0c006b', '#3a2f86', '#5d55a0'], ['#5c49e9', ...NOCTIS_LIGHT_SYNTAX]),
+  t(NOC, 'noctis-lux', 'Noctis Lux', 'light', 'Noctis light: warm cream',
+    ['#f6edda', '#fef8ec', '#fffdf7', '#e8dcc2'], ['#003b42', '#205a61', '#4c7479'], ['#b35900', ...NOCTIS_LIGHT_SYNTAX]),
+
+  // Moonlight
+  t(MOON, 'moonlight', 'Moonlight', 'dark', 'Pale moonlit blues on deep navy',
+    ['#191a2a', '#212337', '#2a2d45', '#363a5a'], ['#e4f3fa', '#c7d3f0', '#8a93c4'], ['#82aaff', '#ff5370', '#f78c6c', '#c3e88d', '#82aaff']),
+  t(MOON, 'moonlight-ii', 'Moonlight II', 'dark', 'Moonlight’s refined, softer sequel',
+    ['#1e2030', '#222436', '#2f334d', '#3b4261'], ['#c8d3f5', '#b4c2f0', '#828bb8'], ['#86e1fc', '#ff757f', '#ff966c', '#c3e88d', '#82aaff']),
+
+  // Monokai Pro
+  t(MP, 'monokai', 'Monokai Pro', 'dark', 'Warm charcoal with bright, punchy accents',
+    ['#221f22', '#2d2a2e', '#363337', '#403e41'], ['#fcfcfa', '#c1c0c0', '#939293'], ['#ffd866', '#ff6188', '#fc9867', '#a9dc76', '#78dce8']),
+  t(MP, 'monokai-classic', 'Monokai Pro Filter Classic', 'dark', 'The original Monokai olive-charcoal',
+    ['#1d1e19', '#272822', '#31322b', '#3e3d32'], ['#fdfff1', '#c0c1b5', '#919288'], ['#e6db74', '#f92672', '#fd971f', '#a6e22e', '#66d9ef']),
+  t(MP, 'monokai-machine', 'Monokai Pro Filter Machine', 'dark', 'Cool blue-grey steel',
+    ['#1d2528', '#273136', '#313b40', '#3a4449'], ['#f2fffc', '#c3cfcd', '#8b9798'], ['#ffed72', '#ff6d7e', '#ffb270', '#a2e57b', '#7cd5f1']),
+  t(MP, 'monokai-octagon', 'Monokai Pro Filter Octagon', 'dark', 'Dusky indigo-grey',
+    ['#1e1f2b', '#282a3a', '#32344a', '#3a3d4b'], ['#eaf2f1', '#c1c7c8', '#888d94'], ['#ffd76d', '#ff657a', '#ff9b5e', '#bad761', '#9cd1bb']),
+  t(MP, 'monokai-ristretto', 'Monokai Pro Filter Ristretto', 'dark', 'Espresso-brown warmth',
+    ['#211c1c', '#2c2525', '#352e2e', '#403838'], ['#fff1f3', '#c3b7b8', '#948a8b'], ['#f9cc6c', '#fd6883', '#f38d70', '#adda78', '#85dacc']),
+  t(MP, 'monokai-spectrum', 'Monokai Pro Filter Spectrum', 'dark', 'Neutral black with a full spectrum',
+    ['#191919', '#222222', '#2d2c2d', '#363537'], ['#f7f1ff', '#bab6c0', '#8b888f'], ['#fce566', '#fc618d', '#fd9353', '#7bd88f', '#5ad4e6']),
+
+  // More classics
+  t(MORE, 'one-monokai', 'One Monokai', 'dark', 'One Dark’s calm UI with Monokai’s colors',
+    ['#21252b', '#282c34', '#2c313a', '#3a3f4b'], ['#d7dae0', '#abb2bf', '#7f848e'], ['#e5c07b', '#f92672', '#fd971f', '#a6e22e', '#66d9ef']),
+  t(MORE, 'panda', 'Panda', 'dark', 'Soft charcoal with teal and pink',
+    ['#242526', '#292a2b', '#31353a', '#3e4145'], ['#e6e6e6', '#c6c6c6', '#8f959c'], ['#19f9d8', '#ff4b82', '#ffb86c', '#19f9d8', '#45a9f9']),
+  t(MORE, 'cyberpunk-2077', '2077', 'dark', 'Cyberpunk neon: cyan and hot pink on navy',
+    ['#010714', '#030d22', '#0a1a3a', '#1b2a4a'], ['#e8fdff', '#9fdfea', '#6fa4b5'], ['#0ef3ff', '#ff3d81', '#ffd400', '#00ff9c', '#0ef3ff']),
+  t(MORE, 'city-lights', 'City Lights', 'dark', 'Night city: dusky blue-grey and cool blues',
+    ['#181e24', '#1d252c', '#252f38', '#333f4a'], ['#d4dee8', '#b7c5d3', '#8499ab'], ['#5ec4ff', '#e27e8d', '#ebbf83', '#8bd49c', '#5ec4ff']),
+  t(MORE, 'palenight', 'Material Palenight', 'dark', 'Material’s soft purple-blue night',
+    ['#1b1e2b', '#292d3e', '#32374d', '#3a3f58'], ['#eeffff', '#a6accd', '#7982b4'], ['#c792ea', '#f07178', '#f78c6c', '#c3e88d', '#82aaff']),
+  t(MORE, 'nord', 'Nord', 'dark', 'Arctic, north-bluish calm',
+    ['#2b303b', '#2e3440', '#3b4252', '#434c5e'], ['#eceff4', '#d8dee9', '#9aa5b8'], ['#88c0d0', '#bf616a', '#d08770', '#a3be8c', '#81a1c1']),
+  t(MORE, 'cobalt2', 'Cobalt2', 'dark', 'Bold cobalt blue with golden highlights',
+    ['#15232d', '#193549', '#1f4662', '#234e6d'], ['#ffffff', '#c7d6e2', '#8fa9bd'], ['#ffc600', '#ff628c', '#ff9d00', '#3ad900', '#9effff']),
+  t(MORE, 'synthwave', 'SynthWave ’84', 'dark', 'Retro neon pink and cyan on dusky purple',
+    ['#1e1a2e', '#262335', '#2a2139', '#3b3052'], ['#ffffff', '#c9c5e0', '#8f8bb8'], ['#ff7edb', '#fe4450', '#fede5d', '#72f1b8', '#36f9f6']),
+  t(MORE, 'gruvbox', 'Gruvbox Dark', 'dark', 'Retro, earthy and warm',
+    ['#1d2021', '#282828', '#32302f', '#3c3836'], ['#ebdbb2', '#d5c4a1', '#a89984'], ['#fabd2f', '#fb4934', '#fe8019', '#b8bb26', '#83a598']),
+  t(MORE, 'solarized-dark', 'Solarized Dark', 'dark', 'The precision palette, deep teal',
+    ['#00212b', '#002b36', '#073642', '#0b4351'], ['#eee8d5', '#93a1a1', '#7f9090'], ['#268bd2', '#dc322f', '#cb4b16', '#859900', '#268bd2']),
+  t(MORE, 'solarized-light', 'Solarized Light', 'light', 'The precision palette, warm cream',
+    ['#eee8d5', '#fdf6e3', '#fdf6e3', '#e0d9c4'], ['#073642', '#4f6069', '#657b83'], ['#268bd2', '#c42c2a', '#a8420f', '#5f6e00', '#1f73ad']),
 ]
+
+/** Families in display order. */
+export const EDITOR_FAMILIES = [...new Set(EDITOR_THEMES.map((e) => e.family))]

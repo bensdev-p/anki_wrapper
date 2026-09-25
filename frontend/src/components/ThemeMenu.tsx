@@ -1,7 +1,8 @@
-import { Check, Monitor, Palette } from 'lucide-react'
+import { Check, LayoutGrid, Monitor, Palette } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTheme } from '../themes/ThemeProvider'
 import { CORE_THEME_IDS, SYSTEM, type Theme } from '../themes/themes'
+import { navigate } from '../lib/router'
 import { Button } from './Button'
 
 export function ThemeSwatch({ theme }: { theme: Theme }) {
@@ -15,7 +16,7 @@ export function ThemeSwatch({ theme }: { theme: Theme }) {
 }
 
 export function ThemeMenu() {
-  const { choice, themes, setChoice } = useTheme()
+  const { choice, theme, themes, setChoice } = useTheme()
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLDivElement>(null)
 
@@ -37,6 +38,17 @@ export function ThemeMenu() {
     setChoice(id)
     setOpen(false)
   }
+
+  const item = (t: Theme) => (
+    <button key={t.id} role="menuitemradio" aria-checked={choice === t.id} className="menu__item" onClick={() => pick(t.id)}>
+      <ThemeSwatch theme={t} />
+      <span className="menu__text">
+        <span>{t.name}</span>
+        <span className="menu__hint">{t.description}</span>
+      </span>
+      {choice === t.id && <Check size={16} className="menu__check" />}
+    </button>
+  )
 
   return (
     <div className="menu-root" ref={root}>
@@ -63,30 +75,33 @@ export function ThemeMenu() {
             </span>
             {choice === SYSTEM && <Check size={16} className="menu__check" />}
           </button>
-          {[
-            ['Rounds', themes.filter((t) => CORE_THEME_IDS.includes(t.id))],
-            ['Editor themes', themes.filter((t) => !CORE_THEME_IDS.includes(t.id))],
-          ].map(([label, list]) => (
-            <div key={label as string} role="group" aria-label={label as string}>
-              <div className="menu__label">{label as string}</div>
-              {(list as Theme[]).map((t) => (
-                <button
-                  key={t.id}
-                  role="menuitemradio"
-                  aria-checked={choice === t.id}
-                  className="menu__item"
-                  onClick={() => pick(t.id)}
-                >
-                  <ThemeSwatch theme={t} />
-                  <span className="menu__text">
-                    <span>{t.name}</span>
-                    <span className="menu__hint">{t.description}</span>
-                  </span>
-                  {choice === t.id && <Check size={16} className="menu__check" />}
-                </button>
-              ))}
+          <div role="group" aria-label="Rounds">
+            <div className="menu__label">Rounds</div>
+            {themes.filter((t) => CORE_THEME_IDS.includes(t.id)).map((t) => item(t))}
+          </div>
+          {!CORE_THEME_IDS.includes(theme.id) && choice !== SYSTEM && (
+            <div role="group" aria-label="Current">
+              <div className="menu__label">Current</div>
+              {item(theme)}
             </div>
-          ))}
+          )}
+          <div className="menu__sep" />
+          <button
+            role="menuitem"
+            className="menu__item"
+            onClick={() => {
+              setOpen(false)
+              navigate({ name: 'settings', section: 'appearance' })
+            }}
+          >
+            <span className="swatch swatch--icon">
+              <LayoutGrid size={14} />
+            </span>
+            <span className="menu__text">
+              <span>All themes…</span>
+              <span className="menu__hint">{themes.length - CORE_THEME_IDS.length} more, incl. Dracula, GitHub, Catppuccin</span>
+            </span>
+          </button>
         </div>
       )}
     </div>
