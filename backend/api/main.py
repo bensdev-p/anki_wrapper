@@ -993,15 +993,29 @@ _DIST = Path(os.environ.get("ROUNDS_FRONTEND_DIST") or REPO_ROOT / "frontend" / 
 
 
 class _SpaStaticFiles(StaticFiles):
-    """Serves index.html for unknown paths so client-side routes survive reloads."""
+    """Serves index.html for unknown paths so client-side routes survive reloads.
+
+    index.html must never be cached: without a Cache-Control header, web views
+    cache it heuristically, and after an update the window keeps showing the
+    previous version's UI. The files under assets/ have content hashes in their
+    names, so they can be cached for good.
+    """
 
     async def get_response(self, path, scope):  # type: ignore[no-untyped-def]
+        fallback = False
         try:
-            return await super().get_response(path, scope)
+            response = await super().get_response(path, scope)
         except StarletteHTTPException as exc:
             if exc.status_code == 404 and not path.startswith("api"):
-                return await super().get_response("index.html", scope)
-            raise
+                response = await super().get_response("index.html", scope)
+                fallback = True
+            else:
+                raise
+        if path.startswith("assets/") and not fallback and response.status_code in (200, 304):
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        else:
+            response.headers["Cache-Control"] = "no-cache"
+        return response
 
 
 if _DIST.is_dir():
