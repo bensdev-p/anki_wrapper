@@ -1,6 +1,7 @@
 import { BarChart3, Compass, GraduationCap, Home, Play, Plus, Search, Settings as SettingsIcon, Upload } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { AppNav } from './components/AppNav'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { CommandPalette, type PaletteAction } from './components/CommandPalette'
 import { AddNote } from './components/editor/AddNote'
 import { useToast } from './components/Toast'
@@ -14,7 +15,7 @@ import { replayTour } from './lib/tour'
 import { openExternal } from './lib/platform'
 import { load, save } from './lib/storage'
 import { flattenDecks, useDecks } from './lib/decks'
-import { navigate, STATS_DEFAULT_DAYS, useRoute } from './lib/router'
+import { navigate, routeHash, STATS_DEFAULT_DAYS, useRoute } from './lib/router'
 import { SYNCED_EVENT, useSyncLifecycle } from './lib/sync'
 import { Browser } from './screens/Browser'
 import { DeckList } from './screens/DeckList'
@@ -26,6 +27,7 @@ import { Study } from './screens/Study'
 
 export default function App() {
   const route = useRoute()
+  const backend = useBackend()
   const [paletteOpen, setPaletteOpen] = useState(false)
   const { decks, reload: reloadDecks } = useDecks()
   useSyncLifecycle()
@@ -105,7 +107,9 @@ export default function App() {
   return (
     <>
       {route.name === 'study' ? (
-        <Study key={route.deckId} deckId={route.deckId} paused={paletteOpen} onOpenPalette={openPalette} />
+        <ErrorBoundary key={route.name} backend={backend} screen={routeHash(route)}>
+          <Study key={route.deckId} deckId={route.deckId} paused={paletteOpen} onOpenPalette={openPalette} />
+        </ErrorBoundary>
       ) : (
         <div className="app">
           <TopBar
@@ -118,6 +122,7 @@ export default function App() {
             }
             center={<AppNav route={route} />}
           />
+          <ErrorBoundary key={route.name} backend={backend} screen={routeHash(route)}>
           {route.name === 'stats' ? (
             <Stats deckId={route.deckId} days={route.days} />
           ) : route.name === 'browse' ? (
@@ -131,6 +136,7 @@ export default function App() {
           ) : (
             <DeckList />
           )}
+          </ErrorBoundary>
           <AppNav route={route} variant="tabs" />
         </div>
       )}

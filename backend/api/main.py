@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import asyncio
 import io
+import logging
+import time
 import ipaddress
 import mimetypes
 import os
@@ -55,6 +57,8 @@ from .importer import ImportManager, ImportStatus
 from .updates import UpdateChecker, UpdateInfo
 from .sharing import COOKIE, COOKIE_MAX_AGE, PairingLocked, Sharing, SharingStatus
 from .sync_manager import AuthFailed, SyncManager, SyncStatus
+
+log = logging.getLogger("rounds")
 
 # SVG and some audio types aren't in every system's mime table.
 mimetypes.add_type("image/svg+xml", ".svg")
@@ -517,11 +521,31 @@ class QuizBody(BaseModel):
 
 @app.post("/api/quiz")
 async def quiz(request: Request, body: QuizBody) -> QuizSet:
-    return await _host(request).run(
+    started = time.perf_counter()
+    result = await _host(request).run(
         lambda col: service.quiz.build_quiz(
             col, body.deck_id, body.tag, body.count, body.cards, body.card_ids  # type: ignore[arg-type]
         )
     )
+    log.info(
+        "quiz: %d of %d questions (%s, %s cards) in %.2fs",
+        len(result.questions), body.count, "retry" if body.card_ids else "deck" if body.deck_id else "tag" if body.tag else "all decks",
+        body.cards, time.perf_counter() - started,
+    )
+    return result
+
+
+class ClientError(BaseModel):
+    kind: str = Field(max_length=40)
+    message: str = Field(max_length=2000)
+    detail: str = Field("", max_length=8000)
+    """Stack trace and the screen it happened on."""
+
+
+@app.post("/api/client-error", status_code=204)
+async def client_error(body: ClientError) -> None:
+    """Errors in the UI, written to the log file (Settings → About → Show log files)."""
+    log.error("UI %s: %s\n%s", body.kind, body.message, body.detail)
 
 
 @app.get("/api/filtered/{deck_id}")

@@ -4244,3 +4244,21 @@
   color: var(--text-muted);
   font-size: var(--fs-sm);
 }
+
+/* A screen that crashed (ErrorBoundary) */
+.crash__text {
+  max-width: 60ch;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.crash__detail {
+  margin: var(--sp-4) 0 var(--sp-5);
+  padding: var(--sp-3) var(--sp-4);
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  white-space: pre-wrap;
+}

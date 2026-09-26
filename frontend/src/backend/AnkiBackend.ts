@@ -128,6 +128,8 @@ export interface AnkiBackend {
   saveFilteredDeck(spec: FilteredDeckSpec): Promise<number>
   rebuildFilteredDeck(deckId: number): Promise<number>
   emptyFilteredDeck(deckId: number): Promise<void>
+  /** Write a UI error to the app's log file, so it can be looked at later. Never throws. */
+  reportError(kind: string, message: string, detail: string): Promise<void>
   /** Tags containing every word of the query, for picking a quiz source. */
   quizTags(query: string): Promise<TagMatch[]>
   /** A practice quiz from the user's cards. Read-only. */

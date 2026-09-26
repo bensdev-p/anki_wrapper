@@ -175,6 +175,16 @@ export class HttpBackend implements AnkiBackend {
   emptyFilteredDeck = async (deckId: number) => {
     await this.request(`/filtered/${deckId}/empty`, { method: 'POST' })
   }
+  reportError = async (kind: string, message: string, detail: string) => {
+    try {
+      await this.request('/client-error', {
+        method: 'POST',
+        body: JSON.stringify({ kind: kind.slice(0, 40), message: message.slice(0, 2000), detail: detail.slice(0, 8000) }),
+      })
+    } catch {
+      // Logging is best effort.
+    }
+  }
   quizTags = (query: string) => this.request<TagMatch[]>(`/quiz/tags?${new URLSearchParams({ q: query })}`)
   quiz = (request: QuizRequest) => this.request<QuizSet>('/quiz', { method: 'POST', body: JSON.stringify(request) })
   importStatus = () => this.request<ImportStatus>('/import')
