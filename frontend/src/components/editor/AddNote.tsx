@@ -140,6 +140,7 @@ export function AddNote() {
         setFrameReady(true)
       } else if (msg.type === 'field') setFields({ ...fieldsRef.current, [msg.name]: msg.html })
       else if (msg.type === 'upload') void handleEditorUpload(backend, frame.current, msg).then((err) => err && setError(err))
+      else if (msg.type === 'notice') setError(msg.text)
       else if (msg.type === 'save') void add()
       else if (msg.type === 'close') requestClose()
     }
@@ -227,7 +228,7 @@ export function AddNote() {
           />
         </label>
         <p className="editor__note">
-          <Kbd>{modKey}↵</Kbd> add · paste or drop images into a field · <strong>HTML</strong> edits a field’s source
+          <Kbd>{modKey}↵</Kbd> add · paste, drop or pick pictures (<strong>Image</strong>); click one to resize · <strong>HTML</strong> edits a field’s source
         </p>
       </div>
     </Sheet>

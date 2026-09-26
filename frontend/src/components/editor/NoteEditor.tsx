@@ -137,7 +137,8 @@ export function NoteEditor({ noteId, open, onClose, onSaved }: Props) {
         setChanged(next)
       } else if (msg.type === 'upload') {
         void handleEditorUpload(backend, frame.current, msg).then((err) => err && setError(err))
-      } else if (msg.type === 'save') void save()
+      } else if (msg.type === 'notice') setError(msg.text)
+      else if (msg.type === 'save') void save()
       else if (msg.type === 'close') requestClose()
     }
     window.addEventListener('message', onMessage)
@@ -206,7 +207,7 @@ export function NoteEditor({ noteId, open, onClose, onSaved }: Props) {
           />
         </label>
         <p className="editor__note">
-          <Kbd>{modKey}B</Kbd> <Kbd>{modKey}I</Kbd> <Kbd>{modKey}U</Kbd> format · <strong>HTML</strong> edits a field’s source
+          <Kbd>{modKey}B</Kbd> <Kbd>{modKey}I</Kbd> <Kbd>{modKey}U</Kbd> format · click a picture to resize · <strong>HTML</strong> edits a field’s source
         </p>
       </div>
     </Sheet>
