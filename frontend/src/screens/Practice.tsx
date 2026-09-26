@@ -65,7 +65,11 @@ export function Practice({ deckId: initialDeck }: { deckId: number | null }) {
   const [finishedAt, setFinishedAt] = useState(0)
 
   // Each phase starts at the top of the page.
-  useEffect(() => window.scrollTo(0, 0), [phase])
+  // Braces: an effect may only return a cleanup function. (In the desktop
+  // window scrollTo returns a value, and React then crashed calling it.)
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [phase])
 
   const update = (patch: Partial<Settings>) => {
     const next = { ...settings, ...patch }
