@@ -1,4 +1,4 @@
-import { BarChart3, Home, Play, Plus, Search, Settings as SettingsIcon, Upload } from 'lucide-react'
+import { BarChart3, Compass, Home, Play, Plus, Search, Settings as SettingsIcon, Upload } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { AppNav } from './components/AppNav'
 import { CommandPalette, type PaletteAction } from './components/CommandPalette'
@@ -10,6 +10,7 @@ import { APP_NAME, Logo } from './components/Logo'
 import { TopBar } from './components/TopBar'
 import { openAddNote } from './lib/addNote'
 import { openImport } from './lib/importer'
+import { replayTour } from './lib/tour'
 import { openExternal } from './lib/platform'
 import { load, save } from './lib/storage'
 import { flattenDecks, useDecks } from './lib/decks'
@@ -72,6 +73,7 @@ export default function App() {
       run: () => openAddNote(route.name === 'study' ? route.deckId : undefined),
     })
     list.push({ id: 'import', label: 'Import a deck file (.apkg)', icon: Upload, run: openImport })
+    list.push({ id: 'tour', label: 'Take the tour', icon: Compass, run: replayTour })
     if (route.name !== 'settings') {
       list.push({ id: 'settings', label: 'Open settings', icon: SettingsIcon, run: () => navigate({ name: 'settings' }) })
     }

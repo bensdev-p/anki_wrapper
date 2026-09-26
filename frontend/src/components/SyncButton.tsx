@@ -40,7 +40,7 @@ export function SyncButton() {
     if (!status.can_sign_in) return null
     return (
       <>
-        <button className="sync-btn" onClick={() => setSignInOpen(true)} title="Sign in to AnkiWeb to sync">
+        <button className="sync-btn" data-tour="sync" onClick={() => setSignInOpen(true)} title="Sign in to AnkiWeb to sync">
           <LogIn size={16} strokeWidth={2} />
           <span className="sync-btn__text">Sign in</span>
         </button>
@@ -81,6 +81,7 @@ export function SyncButton() {
     <div className="menu-root" ref={root}>
       <button
         className={`sync-btn ${attention ? 'sync-btn--attention' : ''}`}
+        data-tour="sync"
         onClick={() => setOpen((o) => !o)}
         aria-label={label}
         aria-expanded={open}

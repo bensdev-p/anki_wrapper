@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Copy, Download, FolderOpen, LogIn, RefreshCw, RotateCcw, Save, Search, Smartphone, Upload } from 'lucide-react'
+import { Check, ChevronDown, Compass, Copy, Download, FolderOpen, LogIn, RefreshCw, RotateCcw, Save, Search, Smartphone, Upload } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useBackend } from '../backend/context'
 import { BackendError } from '../backend/AnkiBackend'
@@ -10,6 +10,7 @@ import { SignInDialog } from '../components/SignInDialog'
 import { Switch } from '../components/Switch'
 import { useToast } from '../components/Toast'
 import { openImport } from '../lib/importer'
+import { replayTour } from '../lib/tour'
 import { load, save } from '../lib/storage'
 import { ThemeSwatch } from '../components/ThemeMenu'
 import { useTheme } from '../themes/ThemeProvider'
@@ -59,6 +60,15 @@ export function Settings() {
         </div>
       </section>
       {info && !info.remote && !info.is_sample && <BackupsSection canRestore={info.desktop} />}
+      <section className="settings-card">
+        <h2>Help</h2>
+        <p className="settings-card__text">New to {APP_NAME}, or want a refresher? The tour walks through the deck list, and the study screen shows its tips again.</p>
+        <div className="settings-card__actions">
+          <Button variant="secondary" onClick={replayTour}>
+            <Compass size={15} /> Take the tour
+          </Button>
+        </div>
+      </section>
       <section className="settings-card">
         <h2>About</h2>
         <p className="settings-card__text">

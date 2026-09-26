@@ -15,7 +15,7 @@ export function AppNav({ route, variant = 'top' }: { route: Route; variant?: 'to
     { key: 'settings', label: 'Settings', icon: Settings, href: routeHash({ name: 'settings' }) },
   ]
   return (
-    <nav className={variant === 'tabs' ? 'tab-bar' : 'app-nav'} aria-label="Sections">
+    <nav className={variant === 'tabs' ? 'tab-bar' : 'app-nav'} aria-label="Sections" data-tour={variant === 'tabs' ? 'nav-tabs' : 'nav'}>
       {items.map((it) => (
         <a
           key={it.key}

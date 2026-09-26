@@ -3600,3 +3600,277 @@
     transition: none;
   }
 }
+
+/* Deck list: calmer by default */
+.deck-head__counts {
+  grid-column: span 3;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.deck__row--idle .deck__name {
+  color: var(--text-muted);
+  font-weight: 450;
+}
+.due-only {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: none;
+  height: 36px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  font-weight: 550;
+  white-space: nowrap;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+.due-only:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.due-only__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+}
+.due-only[aria-checked='true'] {
+  background: var(--accent-soft);
+  border-color: transparent;
+  color: var(--accent);
+}
+.due-only[aria-checked='true'] .due-only__dot {
+  background: currentColor;
+}
+
+/* "Up next": top-level decks with cards waiting */
+.up-next {
+  margin-bottom: var(--sp-6);
+}
+.up-next__title {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-2xs);
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+.up-next__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: var(--sp-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.up-next__deck {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-1);
+  width: 100%;
+  height: 100%;
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  text-align: left;
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out);
+}
+.up-next__deck:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+.up-next__name {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--fs-md);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.up-next__counts {
+  display: flex;
+  gap: var(--sp-3);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+.up-next__counts strong {
+  font-weight: 650;
+}
+.up-next__go {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  margin-top: var(--sp-2);
+  color: var(--accent);
+  font-size: var(--fs-sm);
+  font-weight: 650;
+}
+@media (prefers-reduced-motion: reduce) {
+  .up-next__deck:hover {
+    transform: none;
+  }
+}
+@media (max-width: 640px) {
+  .up-next__list {
+    grid-template-columns: 1fr;
+  }
+  .due-only {
+    padding: 0 var(--sp-2);
+  }
+}
+
+/* First-run walkthrough */
+.tour {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+}
+.tour__dim {
+  position: absolute;
+  inset: 0;
+  background: var(--overlay);
+}
+.tour__spot {
+  position: fixed;
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 0 0 9999px var(--overlay);
+  pointer-events: none;
+  transition:
+    top var(--dur-base) var(--ease-out),
+    left var(--dur-base) var(--ease-out),
+    width var(--dur-base) var(--ease-out),
+    height var(--dur-base) var(--ease-out);
+}
+.tour__card {
+  position: fixed;
+  padding: var(--sp-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-lg);
+  outline: none;
+  animation: tour-in var(--dur-base) var(--ease-out);
+}
+.tour__card--center {
+  top: 50%;
+  left: 50%;
+  width: min(420px, calc(100vw - 32px));
+  transform: translate(-50%, -50%);
+}
+@keyframes tour-in {
+  from {
+    opacity: 0;
+  }
+}
+.tour__close {
+  position: absolute;
+  top: var(--sp-3);
+  right: var(--sp-3);
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  color: var(--text-subtle);
+}
+.tour__close:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.tour__step {
+  margin: 0 0 var(--sp-1);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-subtle);
+}
+.tour__title {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-lg);
+  letter-spacing: -0.01em;
+}
+.tour__body {
+  margin: 0 0 var(--sp-4);
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+.tour__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tour__spot {
+    transition: none;
+  }
+  .tour__card {
+    animation: none;
+  }
+}
+
+/* First study session tips (float above the answer bar: no layout shift) */
+.answer-bar {
+  position: relative;
+}
+.study-tip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% - var(--sp-1));
+  z-index: 5;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  width: min(520px, calc(100vw - 2 * var(--gutter)));
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-md);
+  transform: translateX(-50%);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  line-height: 1.5;
+  animation: tour-in var(--dur-base) var(--ease-out);
+}
+.study-tip p {
+  margin: 0;
+  flex: 1;
+}
+.study-tip strong {
+  color: var(--text);
+}
+.study-tip__ok {
+  flex: none;
+  font-weight: 650;
+}
+@media (prefers-reduced-motion: reduce) {
+  .study-tip {
+    animation: none;
+  }
+}
+@media (max-width: 640px) {
+  /* The filter gets its own row so it stays usable next to the buttons. */
+  .panel__toolbar--decks {
+    flex-wrap: wrap;
+  }
+  .panel__toolbar--decks .filter {
+    flex-basis: 100%;
+  }
+  .panel__toolbar--decks .due-only {
+    margin-right: auto;
+  }
+}

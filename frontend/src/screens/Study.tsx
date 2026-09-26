@@ -18,6 +18,7 @@ import { modKey } from '../lib/platform'
 import { navigate } from '../lib/router'
 import { requestSync, SYNCED_EVENT, useSync } from '../lib/sync'
 import { whenOnline } from '../lib/connection'
+import { markStudyTipsSeen, studyTipsSeen } from '../lib/tour'
 import { useTheme } from '../themes/ThemeProvider'
 
 interface Answered {
@@ -95,6 +96,15 @@ export function Study({ deckId, paused, onOpenPalette }: Props) {
   const [typeAnswerHtml, setTypeAnswerHtml] = useState<string | null>(null)
   const [sheet, setSheet] = useState<'info' | 'edit' | null>(null)
   const [sending, setSending] = useState(false)
+  // First study session: explain reveal-then-grade, until two cards are done.
+  const [tips, setTips] = useState(() => !studyTipsSeen())
+  const hideTips = useCallback(() => {
+    markStudyTipsSeen()
+    setTips(false)
+  }, [])
+  useEffect(() => {
+    if (tips && answered.length >= 2) hideTips()
+  }, [tips, answered.length, hideTips])
   const { status: syncStatus } = useSync()
   const missingNoticeFor = useRef<number | null>(null)
   const inputPaused = paused || sheet !== null
@@ -466,6 +476,25 @@ export function Study({ deckId, paused, onOpenPalette }: Props) {
           </div>
 
           <footer className="answer-bar">
+            {tips && card && (
+              <div className="study-tip" role="note" key={side}>
+                <p>
+                  {side === 'question' ? (
+                    <>
+                      <strong>Try to remember the answer first.</strong> Then press Show answer to check yourself.
+                    </>
+                  ) : (
+                    <>
+                      <strong>How well did you remember?</strong> Again if you forgot: you’ll see it again soon. Good if
+                      you got it. The time on each button is when the card comes back.
+                    </>
+                  )}
+                </p>
+                <button className="link study-tip__ok" onClick={hideTips}>
+                  Got it
+                </button>
+              </div>
+            )}
             <div className="answer-bar__stats tabular" aria-label="Session stats">
               <span>
                 <strong>{done}</strong> reviewed

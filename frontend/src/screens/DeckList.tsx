@@ -11,6 +11,8 @@ import { useToast } from '../components/Toast'
 import { BackendError } from '../backend/AnkiBackend'
 import { Kbd } from '../components/Kbd'
 import { SignInDialog } from '../components/SignInDialog'
+import { HOME_TOUR, Tour } from '../components/Tour'
+import { tourDone } from '../lib/tour'
 import { openAddNote } from '../lib/addNote'
 import { openImport } from '../lib/importer'
 import { useDecks } from '../lib/decks'
@@ -31,6 +33,13 @@ function sumCounts(nodes: DeckNode[]): Counts {
     (acc, n) => ({ new: acc.new + n.counts.new, learning: acc.learning + n.counts.learning, review: acc.review + n.counts.review }),
     { new: 0, learning: 0, review: 0 },
   )
+}
+
+const total = (c: Counts) => c.new + c.learning + c.review
+
+/** Drop decks with nothing to study today (and no subdeck that has some). */
+function withWork(nodes: DeckNode[]): DeckNode[] {
+  return nodes.filter((n) => total(n.counts) > 0).map((n) => ({ ...n, children: withWork(n.children) }))
 }
 
 /** Keep nodes that match every term, plus their ancestors. */
@@ -85,6 +94,11 @@ export function DeckList() {
   const [info, setInfo] = useState<CollectionInfo | null>(null)
   const [query, setQuery] = useState('')
   const [collapsed, setCollapsed] = useState<Record<number, boolean>>(() => load('collapsed', {}))
+  const [dueOnly, setDueOnlyState] = useState<boolean>(() => load('due-only', false))
+  const setDueOnly = (on: boolean) => {
+    setDueOnlyState(on)
+    save('due-only', on)
+  }
   const [signInOpen, setSignInOpen] = useState(false)
   const [dialog, setDialog] = useState<DeckDialogState>(null)
   const [customFor, setCustomFor] = useState<DeckNode | null>(null)
@@ -116,7 +130,12 @@ export function DeckList() {
   }, [])
 
   const terms = useMemo(() => query.toLowerCase().split(/\s+/).filter(Boolean), [query])
-  const visible = useMemo(() => (decks ? filterTree(decks, terms) : null), [decks, terms])
+  const visible = useMemo(() => (decks ? filterTree(dueOnly ? withWork(decks) : decks, terms) : null), [decks, terms, dueOnly])
+  // Top-level decks with cards waiting, most first: the "just start" row.
+  const upNext = useMemo(
+    () => (decks ? decks.filter((d) => total(d.counts) > 0).sort((a, b) => total(b.counts) - total(a.counts)).slice(0, 4) : null),
+    [decks],
+  )
   const totals = decks ? sumCounts(decks) : null
 
   const isCollapsed = (n: DeckNode) => (terms.length ? false : (collapsed[n.id] ?? n.collapsed))
@@ -165,7 +184,10 @@ export function DeckList() {
       const open = hasKids && !isCollapsed(n)
       return (
         <li key={n.id} role="treeitem" aria-expanded={hasKids ? open : undefined} className="deck">
-          <div className="deck__row" style={{ '--depth': depth } as React.CSSProperties}>
+          <div
+            className={`deck__row ${total(n.counts) ? '' : 'deck__row--idle'}`}
+            style={{ '--depth': depth } as React.CSSProperties}
+          >
             {hasKids ? (
               <button
                 className={`deck__toggle ${open ? 'is-open' : ''}`}
@@ -265,9 +287,44 @@ export function DeckList() {
         </section>
       )}
 
+      {upNext && upNext.length > 0 && (
+        <section className="up-next" aria-labelledby="up-next-title" data-tour="up-next">
+          <h2 id="up-next-title" className="up-next__title">
+            Up next
+          </h2>
+          <ul className="up-next__list">
+            {upNext.map((d) => {
+              const due = d.counts.review + d.counts.learning
+              return (
+                <li key={d.id}>
+                  <button className="up-next__deck" onClick={() => study(d)}>
+                    <span className="up-next__name">{d.name}</span>
+                    <span className="up-next__counts tabular">
+                      {due > 0 && (
+                        <span>
+                          <strong className="count--review">{due}</strong> due
+                        </span>
+                      )}
+                      {d.counts.new > 0 && (
+                        <span>
+                          <strong className="count--new">{d.counts.new}</strong> new
+                        </span>
+                      )}
+                    </span>
+                    <span className="up-next__go">
+                      Study <ArrowRight size={15} aria-hidden="true" />
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+      )}
+
       <section className="panel" aria-label="Decks">
         <div className="panel__toolbar panel__toolbar--decks">
-          <label className="filter">
+          <label className="filter" data-tour="deck-filter">
             <Search size={16} className="filter__icon" aria-hidden="true" />
             <input
               ref={filterRef}
@@ -297,6 +354,17 @@ export function DeckList() {
               <Kbd className="filter__kbd">/</Kbd>
             )}
           </label>
+          <button
+            className="due-only"
+            role="switch"
+            aria-checked={dueOnly}
+            onClick={() => setDueOnly(!dueOnly)}
+            title="Show only decks with cards to study today"
+            data-tour="due-only"
+          >
+            <span className="due-only__dot" aria-hidden="true" />
+            Due only
+          </button>
           <Button variant="secondary" onClick={() => setFiltered({ deckId: 0 })} title="New filtered deck (study cards matching a search)">
             <Filter size={15} />
             <span className="btn__label btn__label--wide">Filtered deck</span>
@@ -313,9 +381,11 @@ export function DeckList() {
 
         <div className="deck-head" aria-hidden="true">
           <span>Deck</span>
-          <span className="count--new">New</span>
-          <span className="count--learning">Learn</span>
-          <span className="count--review">Due</span>
+          <span className="deck-head__counts" data-tour="deck-counts">
+            <span className="count--new">New</span>
+            <span className="count--learning">Learn</span>
+            <span className="count--review">Due</span>
+          </span>
           <span />
         </div>
 
@@ -338,10 +408,21 @@ export function DeckList() {
           </ul>
         ) : visible.length === 0 ? (
           <div className="empty">
-            <p>No decks match “{query}”.</p>
+            {query ? (
+              <p>No decks match “{query}”.</p>
+            ) : dueOnly ? (
+              <>
+                <p>Nothing due right now. Nice work.</p>
+                <button className="link" onClick={() => setDueOnly(false)}>
+                  Show all decks
+                </button>
+              </>
+            ) : (
+              <p>No decks yet.</p>
+            )}
           </div>
         ) : (
-          <ul className="deck-tree" role="tree" aria-label="Decks">
+          <ul className="deck-tree" role="tree" aria-label="Decks" data-tour="deck-tree">
             {renderNodes(visible, 0)}
           </ul>
         )}
@@ -351,6 +432,7 @@ export function DeckList() {
         onClose={() => setDialog(null)}
         onChanged={() => void reload()}
       />
+      <Tour steps={HOME_TOUR} autoStart={!!info && info.card_count > 0 && !!decks && !tourDone()} />
       <CustomStudyDialog deck={customFor} onClose={() => setCustomFor(null)} />
       <FilteredDeckDialog state={filtered} onClose={() => setFiltered(null)} onSaved={() => void reload()} />
     </main>
