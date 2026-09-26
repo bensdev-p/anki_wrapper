@@ -58,6 +58,7 @@ def main() -> None:
             note = col.new_note(basic)  # type: ignore[arg-type]
             note["Front"] = f"Question {i}: " + "lorem ipsum dolor " * 4
             note["Back"] = f"Answer {i}"
+            note.tags = [f"#AK_Step1::#B&B::{rng.randint(1, 40):02d}_System::{rng.randint(1, 30):02d}_Topic"]
             requests.append(AddNoteRequest(note=note, deck_id=rng.choice(decks)))
         col.add_notes(requests)
         cids = list(col.find_cards("deck:*"))
@@ -94,6 +95,9 @@ def main() -> None:
         bench("browse: one page of rows", lambda: service.browser.rows(col, ids[50_000:50_100]))
         bench("stats, 3 months (default)", lambda: service.stats(col, days=90))
         bench("stats, 1 year", lambda: service.stats(col, days=365))
+        bench("practice quiz, 20 (deck)", lambda: service.quiz.build_quiz(col, top, None, 20), runs=5)
+        bench("practice quiz, 20 (weak)", lambda: service.quiz.build_quiz(col, None, None, 20, "weak"), runs=5)
+        bench("quiz: tag search", lambda: service.quiz.find_tags(col, "b&b topic"))
     finally:
         col.close()
         shutil.rmtree(root, ignore_errors=True)

@@ -1,4 +1,4 @@
-import { BarChart3, Layers, Search, Settings } from 'lucide-react'
+import { BarChart3, Layers, ListChecks, Search, Settings } from 'lucide-react'
 import { routeHash, STATS_DEFAULT_DAYS, type Route } from '../lib/router'
 
 /** Top-level sections, as a segmented control in the top bar. */
@@ -6,6 +6,7 @@ export function AppNav({ route, variant = 'top' }: { route: Route; variant?: 'to
   const items = [
     { key: 'home', label: 'Decks', icon: Layers, href: routeHash({ name: 'home' }) },
     { key: 'browse', label: 'Browse', icon: Search, href: routeHash({ name: 'browse', q: '' }) },
+    { key: 'practice', label: 'Practice', icon: ListChecks, href: routeHash({ name: 'practice', deckId: null }) },
     {
       key: 'stats',
       label: 'Stats',

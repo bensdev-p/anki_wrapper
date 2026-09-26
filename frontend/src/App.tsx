@@ -1,4 +1,4 @@
-import { BarChart3, Compass, Home, Play, Plus, Search, Settings as SettingsIcon, Upload } from 'lucide-react'
+import { BarChart3, Compass, GraduationCap, Home, Play, Plus, Search, Settings as SettingsIcon, Upload } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { AppNav } from './components/AppNav'
 import { CommandPalette, type PaletteAction } from './components/CommandPalette'
@@ -19,6 +19,7 @@ import { SYNCED_EVENT, useSyncLifecycle } from './lib/sync'
 import { Browser } from './screens/Browser'
 import { DeckList } from './screens/DeckList'
 import { DeckOptions } from './screens/DeckOptions'
+import { Practice } from './screens/Practice'
 import { Settings } from './screens/Settings'
 import { Stats } from './screens/Stats'
 import { Study } from './screens/Study'
@@ -65,6 +66,10 @@ export default function App() {
     }
     if (route.name !== 'browse') {
       list.push({ id: 'browse', label: 'Browse cards', icon: Search, run: () => navigate({ name: 'browse', q: '' }) })
+    }
+    if (route.name !== 'practice') {
+      const deckId = route.name === 'study' ? route.deckId : null
+      list.push({ id: 'practice', label: 'Practice quiz', icon: GraduationCap, run: () => navigate({ name: 'practice', deckId }) })
     }
     list.push({
       id: 'add',
@@ -119,6 +124,8 @@ export default function App() {
             <Browser initialQuery={route.q} />
           ) : route.name === 'settings' ? (
             <Settings />
+          ) : route.name === 'practice' ? (
+            <Practice key={route.deckId ?? 'all'} deckId={route.deckId} />
           ) : route.name === 'options' ? (
             <DeckOptions key={route.deckId} deckId={route.deckId} />
           ) : (

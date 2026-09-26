@@ -8,6 +8,9 @@ import type {
   FilteredDeckForm,
   FilteredDeckSpec,
   ImportStatus,
+  QuizRequest,
+  QuizSet,
+  TagMatch,
   AddDefaults,
   AddNoteResult,
   DeckName,
@@ -172,6 +175,8 @@ export class HttpBackend implements AnkiBackend {
   emptyFilteredDeck = async (deckId: number) => {
     await this.request(`/filtered/${deckId}/empty`, { method: 'POST' })
   }
+  quizTags = (query: string) => this.request<TagMatch[]>(`/quiz/tags?${new URLSearchParams({ q: query })}`)
+  quiz = (request: QuizRequest) => this.request<QuizSet>('/quiz', { method: 'POST', body: JSON.stringify(request) })
   importStatus = () => this.request<ImportStatus>('/import')
   /** XHR rather than fetch: only XHR reports upload progress (big decks take a while). */
   importFile = (file: File, onProgress?: (fraction: number) => void) =>

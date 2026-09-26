@@ -81,6 +81,8 @@ the Pi server mode stays supported (and stays download-only).
   `sched.deck_due_tree`, `card.render_output`, `col.undo`. Before using an Anki
   method, check its source in `.venv/lib/python3*/site-packages/anki/`. For
   desktop behavior, check `aqt` (e.g. `pip download aqt==<same version> --no-deps`).
+- Practice quizzes (`service/quiz.py`) are read-only: they render cards and read
+  notes, and never answer, reschedule or edit anything.
 - Performance: never load all cards or notes into Python. Use Anki's counts and
   queries (`find_cards` returns ids only). Target: instant deck list and next card
   at 100k cards on a Pi 5 (`scripts/benchmark.py`).

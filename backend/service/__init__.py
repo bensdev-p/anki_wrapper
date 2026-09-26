@@ -26,7 +26,7 @@ from .review import (
 )
 from .search import search_cards
 from .stats import stats
-from . import backups, browser, deck_options, study_tools, sync
+from . import backups, browser, deck_options, quiz, study_tools, sync
 
 __all__ = [
     "add_defaults",
@@ -60,6 +60,7 @@ __all__ = [
     "stats",
     "sync",
     "browser",
+    "quiz",
     "study_state",
     "undo",
     "undo_step",

@@ -501,3 +501,38 @@ class BackupInfo:
     """Unix seconds."""
     size: int
     """Bytes."""
+
+
+# Practice quizzes (service/quiz.py)
+##########################################################################
+
+
+@dataclass
+class TagMatch:
+    tag: str
+    label: str
+    """The last two levels, for display."""
+
+
+@dataclass
+class QuizQuestion:
+    card_id: int
+    note_id: int
+    deck_name: str
+    answer: str
+    """The short answer (plain text), for checking a typed answer."""
+    prompt: str
+    """The question as one line of plain text (for the results list)."""
+    choices: list[str]
+    """Multiple-choice options, including the answer; empty if no good wrong options were found."""
+    correct: int
+    """Index of the answer in `choices` (-1 without choices)."""
+    rendered: RenderedCard
+
+
+@dataclass
+class QuizSet:
+    search: str
+    available: int
+    """Cards matching the source and card filter (before picking)."""
+    questions: list[QuizQuestion]

@@ -6,6 +6,9 @@ import type {
   FilteredDeckForm,
   FilteredDeckSpec,
   ImportStatus,
+  QuizRequest,
+  QuizSet,
+  TagMatch,
   AddDefaults,
   AddNoteResult,
   DeckName,
@@ -125,6 +128,10 @@ export interface AnkiBackend {
   saveFilteredDeck(spec: FilteredDeckSpec): Promise<number>
   rebuildFilteredDeck(deckId: number): Promise<number>
   emptyFilteredDeck(deckId: number): Promise<void>
+  /** Tags containing every word of the query, for picking a quiz source. */
+  quizTags(query: string): Promise<TagMatch[]>
+  /** A practice quiz from the user's cards. Read-only. */
+  quiz(request: QuizRequest): Promise<QuizSet>
   importStatus(): Promise<ImportStatus>
   /** Upload a .apkg and start importing it; onProgress gets upload fractions 0–1. */
   importFile(file: File, onProgress?: (fraction: number) => void): Promise<ImportStatus>

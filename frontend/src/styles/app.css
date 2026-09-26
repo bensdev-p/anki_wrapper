@@ -2705,7 +2705,8 @@
     right: 0;
     bottom: 0;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
     height: calc(56px + env(safe-area-inset-bottom));
     padding-bottom: env(safe-area-inset-bottom);
     background: color-mix(in srgb, var(--bg) 86%, transparent);
@@ -3873,4 +3874,373 @@
   .panel__toolbar--decks .due-only {
     margin-right: auto;
   }
+}
+
+/* Practice quizzes */
+.page--practice {
+  max-width: calc(760px + 2 * var(--gutter));
+}
+.practice__intro {
+  margin: calc(-1 * var(--sp-4)) 0 var(--sp-5);
+  max-width: 60ch;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.practice-setup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+.practice-field {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
+}
+.practice-field__label {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: 650;
+}
+.practice-field__control {
+  width: 100%;
+  max-width: 480px;
+}
+.select.practice-field__control {
+  display: flex;
+}
+.select.practice-field__control select {
+  flex: 1;
+  max-width: none;
+}
+.practice-field .segmented {
+  flex-wrap: wrap;
+}
+.practice-options {
+  display: grid;
+  gap: var(--sp-2);
+  width: 100%;
+  max-width: 480px;
+}
+.practice-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  text-align: left;
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
+}
+.practice-option:hover {
+  background: var(--surface-hover);
+}
+.practice-option[aria-checked='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.practice-option__dot {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-strong);
+}
+.practice-option[aria-checked='true'] .practice-option__dot {
+  border: 5px solid var(--accent);
+}
+.practice-option strong {
+  display: block;
+  font-weight: 600;
+}
+.practice-option__hint {
+  display: block;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+.practice-setup__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+.practice-setup__error {
+  margin: 0;
+  flex: 1;
+  min-width: 200px;
+}
+.practice-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  max-width: 100%;
+  height: 36px;
+  padding: 0 var(--sp-2) 0 var(--sp-3);
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.practice-tag__name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.practice-tag__clear {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+.practice-tag__clear:hover {
+  background: var(--accent-soft);
+}
+.practice-tags {
+  max-height: 260px;
+  overflow-y: auto;
+  margin: var(--sp-2) 0 0;
+  padding: var(--sp-1);
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.practice-tags__item {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: var(--sp-2);
+  border-radius: var(--radius-sm);
+  text-align: left;
+}
+.practice-tags__item:hover,
+.practice-tags__item:focus-visible {
+  background: var(--surface-hover);
+}
+.practice-tags__item strong {
+  font-weight: 600;
+}
+.practice-tags__item span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--fs-xs);
+  color: var(--text-subtle);
+}
+.practice-tags__none {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.page--practice-run {
+  padding-top: var(--sp-6);
+}
+.practice-run__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-2);
+}
+.practice-run__count {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+.practice-run__count strong {
+  color: var(--text);
+}
+.practice-run__deck {
+  margin-left: var(--sp-3);
+  color: var(--text-subtle);
+}
+.practice-run__score {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--good);
+  font-weight: 650;
+  font-size: var(--fs-sm);
+}
+.practice-run__progress {
+  margin-bottom: var(--sp-4);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+.practice-run__card {
+  height: clamp(220px, 44dvh, 480px);
+  flex: none;
+  max-width: none;
+}
+.practice-run__answer {
+  margin-top: var(--sp-4);
+}
+.practice-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-2);
+}
+.practice-choice {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 56px;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  text-align: left;
+  font-weight: 550;
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out),
+    opacity var(--dur-base) var(--ease-out);
+}
+.practice-choice:not(:disabled):hover {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+}
+.practice-choice__text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.practice-choice.is-correct {
+  border-color: var(--good);
+  color: var(--good);
+  box-shadow: inset 0 0 0 1px var(--good);
+}
+.practice-choice.is-wrong {
+  border-color: var(--again);
+  color: var(--again);
+  box-shadow: inset 0 0 0 1px var(--again);
+}
+.practice-choice.is-dim {
+  opacity: 0.55;
+}
+.practice-typed {
+  display: flex;
+  gap: var(--sp-2);
+}
+.practice-typed__input {
+  flex: 1;
+  min-width: 0;
+  height: 48px;
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--fs-md);
+}
+.practice-typed__input:focus {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+.practice-typed__input.is-correct {
+  border-color: var(--good);
+  color: var(--good);
+}
+.practice-typed__input.is-wrong {
+  border-color: var(--again);
+  color: var(--again);
+  text-decoration: line-through;
+}
+.practice-run__feedback {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  min-height: 52px;
+  margin-top: var(--sp-3);
+}
+.practice-verdict {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+}
+.practice-verdict--right {
+  color: var(--good);
+}
+.practice-verdict--wrong {
+  color: var(--text-muted);
+}
+.practice-verdict--wrong strong {
+  color: var(--text);
+}
+.practice-run__next {
+  margin-left: auto;
+}
+.practice-score {
+  margin-bottom: var(--sp-6);
+}
+.practice-score__big {
+  margin: 0;
+  font-size: 56px;
+  line-height: 1;
+  font-weight: 750;
+  letter-spacing: -0.04em;
+}
+.practice-score__big span {
+  color: var(--text-subtle);
+  font-weight: 600;
+}
+.practice-score__sub {
+  margin: var(--sp-2) 0 var(--sp-4);
+  color: var(--text-muted);
+}
+.practice-missed {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.practice-missed li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--border);
+}
+.practice-missed li:first-child {
+  border-top: 0;
+}
+.practice-missed__answer {
+  font-weight: 600;
+}
+.practice-missed__meta {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+@media (max-width: 640px) {
+  .practice-choices {
+    grid-template-columns: 1fr;
+  }
+  .practice-choice {
+    min-height: 50px;
+  }
+  .practice-run__deck {
+    display: none;
+  }
+  .practice-run__card {
+    height: clamp(200px, 38dvh, 420px);
+  }
+  .practice-typed__input {
+    font-size: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .practice-choice {
+    transition: none;
+  }
+}
+.practice-missed__prompt {
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
 }

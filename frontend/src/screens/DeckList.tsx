@@ -152,6 +152,7 @@ export function DeckList() {
     else if (action === 'rename') setDialog({ kind: 'rename', deck })
     else if (action === 'subdeck') setDialog({ kind: 'create', prefix: `${deck.full_name}::` })
     else if (action === 'custom') setCustomFor(deck)
+    else if (action === 'practice') navigate({ name: 'practice', deckId: deck.id })
     else if (action === 'edit-filtered') setFiltered({ deckId: deck.id })
     else if (action === 'rebuild' || action === 'empty') {
       const op = action === 'rebuild' ? backend.rebuildFilteredDeck(deck.id) : backend.emptyFilteredDeck(deck.id).then(() => 0)

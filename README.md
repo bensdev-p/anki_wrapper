@@ -91,7 +91,9 @@ from a laptop; the steps below cover that setup.
 ## Features
 
 - Deck list: nested tree with New / Learn / Due counts from Anki's scheduler. Collapse
-  and filter it (press `/`), and click a deck to study.
+  and filter it (press `/`), and click a deck to study. **Up next** shows the decks
+  with cards waiting today, and **Due only** hides the rest. A short tour runs the
+  first time (replay it from Settings → Help).
 - Review screen: Anki's v3 scheduler flow, with the scheduler's real next intervals on
   the four buttons. `Space` flips, `1`–`4` answer, `⌘Z`/`Ctrl+Z` undoes. Tap the card
   to flip on the phone. Includes a progress bar, session stats and a summary screen.
@@ -112,7 +114,14 @@ from a laptop; the steps below cover that setup.
 - Decks: create, rename or move (`Parent::Child`), delete (with Undo), and a
   ⋯ menu on each deck. Deck options with Anki's presets, daily limits, steps,
   display order, FSRS and burying.
-- Add cards (`A`): note type, deck, tags; paste or drop images; `⌘⇧C` for cloze.
+- Add cards (`A`): note type, deck, tags; `⌘⇧C` for cloze. Pictures: paste, drop
+  or use each field's **Image** button (photo library on phones). Big photos are
+  scaled down; click a picture to make it small, medium or full width.
+- **Practice quizzes** (Practice tab, or a deck's ⋯ menu): multiple choice or
+  typed answers made from your own cards, by deck or tag (e.g. an AnKing
+  `#B&B::Glycolysis` tag), from studied cards, your weak spots, or everything.
+  Wrong options are answers from closely related cards. Quizzes are read-only:
+  they never answer or reschedule a card.
 - Custom study (Anki's six options), filtered decks (also from any browser
   search: "Study these"), and importing shared decks (`.apkg`).
 - Settings: AnkiWeb account, use on your phone, import, backups, updates.

@@ -40,11 +40,13 @@ from service.types import (
     BrowsePage,
     CardInfo,
     NoteForEdit,
+    QuizSet,
     RenderedCard,
     DeckNode,
     SearchResult,
     StatsSummary,
     StudyState,
+    TagMatch,
     UndoResult,
 )
 
@@ -491,6 +493,33 @@ async def custom_study(request: Request, deck_id: int, body: CustomStudyBody) ->
             lambda col: service.study_tools.custom_study(
                 col, deck_id, body.kind, body.amount, body.cram_kind, body.tags_include, body.tags_exclude  # type: ignore[arg-type]
             )
+        )
+    )
+
+
+# Practice quizzes (read-only: nothing is answered or rescheduled)
+##########################################################################
+
+
+@app.get("/api/quiz/tags")
+async def quiz_tags(request: Request, q: str = Query("", max_length=200)) -> list[TagMatch]:
+    return await _host(request).run(lambda col: service.quiz.find_tags(col, q))
+
+
+class QuizBody(BaseModel):
+    deck_id: int | None = None
+    tag: str | None = Field(None, max_length=500)
+    count: int = Field(20, ge=1, le=service.quiz.MAX_QUESTIONS)
+    cards: str = Field("mixed", pattern="^(mixed|weak|all)$")
+    card_ids: list[int] | None = Field(None, max_length=service.quiz.MAX_QUESTIONS)
+    """Exactly these cards (retrying the ones missed)."""
+
+
+@app.post("/api/quiz")
+async def quiz(request: Request, body: QuizBody) -> QuizSet:
+    return await _host(request).run(
+        lambda col: service.quiz.build_quiz(
+            col, body.deck_id, body.tag, body.count, body.cards, body.card_ids  # type: ignore[arg-type]
         )
     )
 

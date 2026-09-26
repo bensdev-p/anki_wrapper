@@ -483,3 +483,44 @@ export interface UpdateInfo {
   /** Release page to download from. */
   url: string | null
 }
+
+// Practice quizzes (service/quiz.py). Read-only: nothing is answered or rescheduled.
+
+export interface TagMatch {
+  tag: string
+  /** The last two levels, for display. */
+  label: string
+}
+
+export type QuizCards = 'mixed' | 'weak' | 'all'
+
+export interface QuizRequest {
+  deck_id?: number | null
+  tag?: string | null
+  count: number
+  cards: QuizCards
+  /** Exactly these cards (retrying the ones missed). */
+  card_ids?: number[]
+}
+
+export interface QuizQuestion {
+  card_id: number
+  note_id: number
+  deck_name: string
+  /** The short answer (plain text), for checking a typed answer. */
+  answer: string
+  /** The question as one line of plain text (for the results list). */
+  prompt: string
+  /** Multiple-choice options including the answer; empty if no good wrong options were found. */
+  choices: string[]
+  /** Index of the answer in choices (-1 without choices). */
+  correct: number
+  rendered: RenderedCard
+}
+
+export interface QuizSet {
+  search: string
+  /** Cards matching the source and card filter (before picking). */
+  available: number
+  questions: QuizQuestion[]
+}

@@ -25,12 +25,13 @@ _TYPE_ANSWER_RE = re.compile(r"\[\[type:(.+?)\]\]")
 _PLAY_BUTTON = """<a class="replay-button soundLink" href="#" data-av="{ref}" draggable="false" aria-label="Play audio"><svg class="playImage" viewBox="0 0 64 64" version="1.1"><circle cx="32" cy="32" r="29" /><path d="M56.502,32.301l-37.502,20.101l0.329,-40.804l37.173,20.703Z" /></svg></a>"""
 
 
-def render_card(col: Collection, card: Card) -> RenderedCard:
+def render_card(col: Collection, card: Card, type_box: bool = True) -> RenderedCard:
+    """`type_box=False` leaves out the [[type:…]] box (practice quizzes have their own)."""
     out = card.render_output(reload=True)
     audio = _audio_refs("q", out.question_av_tags) + _audio_refs(
         "a", out.answer_av_tags
     )
-    field = _type_answer_field(card, out.question_text)
+    field = _type_answer_field(card, out.question_text) if type_box else None
     question = _prepare(col, out.question_text, side="q", field=field)
     answer = _prepare(col, out.answer_text, side="a", field=field)
     conf = col.decks.config_dict_for_deck_id(card.current_deck_id())
