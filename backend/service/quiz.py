@@ -11,17 +11,25 @@ sandboxed card frame) and a short answer:
 * other cards: the `[[type:Field]]` field if the card has one, else the first
   field the answer side shows that the front doesn't (Back on Basic).
 
-Wrong options for multiple choice are other cards' answers, from the most
-closely related cards first: the card's most specific tag (AnKing tags are
-deep, e.g. …::B&B::Glycolysis), then its parent tags, the quiz's own cards,
-and finally the card's deck.
+Wrong options for multiple choice are other cards' answers:
+
+* with smarter options on, the answers that mean the most similar thing
+  (an `AnswerNeighbours` index, e.g. on-device embeddings; see backend/semantic);
+* otherwise, or when that finds too few, answers from closely related cards:
+  the card's most specific *topic* tags (AnKing: …::#B&B::03_Biochem::05_Glycolysis;
+  not question-bank tags like …::#UWorld::Step::12345, which group unrelated
+  facts), then their parent tags, then the card's deck. Groups too broad to
+  mean "related" (a whole AnKing deck) are skipped.
+
+A question with fewer than two good wrong options is asked as type-the-answer
+rather than padded with random ones.
 """
 
 from __future__ import annotations
 
 import random
 import re
-from typing import Literal
+from typing import Literal, Protocol
 
 from anki.cards import Card
 from anki.collection import Collection, SearchNode, StripHtmlMode
@@ -35,7 +43,23 @@ QuizCards = Literal["mixed", "weak", "all"]
 MAX_QUESTIONS = 50
 MAX_ANSWER_CHARS = 90
 CHOICES = 4
+MIN_WRONG = 2
+"""Fewer good wrong options than this and the question is asked as type-the-answer."""
+BROAD_GROUP = 1500
+"""A tag, deck or quiz with more notes/cards than this is too broad to count as "related"."""
+TOPIC_TAGS = 3
 _CANDIDATES_PER_GROUP = 30
+
+# Question banks and resource IDs: their tags group facts by question, not by topic.
+_QBANK = {"uworld", "amboss", "nbme", "uwsa", "qid", "qids", "truelearn", "kaplan", "rx", "usmlerx", "free120", "cms"}
+
+
+class AnswerNeighbours(Protocol):
+    """Finds answers in the collection that mean something similar (optional; see backend/semantic)."""
+
+    def nearest(self, items: list[tuple[str, str]], limit: int) -> list[list[str]]:
+        """For each (answer, question) pair: other answers, most plausible wrong option first."""
+        ...
 
 _FIELD_REF = re.compile(r"\{\{([^#/^!{}][^{}]*)\}\}")
 _SOUND = re.compile(r"\[sound:[^\]]*\]")
@@ -92,6 +116,7 @@ def build_quiz(
     cards: QuizCards = "mixed",
     card_ids: list[int] | None = None,
     seed: int | None = None,
+    neighbours: AnswerNeighbours | None = None,
 ) -> QuizSet:
     """Up to `count` questions from the chosen deck and/or tag (or exactly `card_ids`, to retry misses)."""
     rng = random.Random(seed)
@@ -119,11 +144,19 @@ def build_quiz(
         if answer is not None:
             picked.append((card, answer))
 
-    groups = _leaf_tag_groups(col, [_leaf_tag(card) for card, _ in picked])
+    prompts = [card_prompt(col, card) for card, _ in picked]
+    nearest = neighbours.nearest([(a, p) for (_, a), p in zip(picked, prompts)], 40) if neighbours and picked else None
+    groups = _tag_groups(col, [t for card, _ in picked for t in topic_tags(card.note().tags)])
+    # The quiz's own cards are "related" only when the quiz itself is focused (a tag, a small deck).
+    focused_pool = pool if available <= BROAD_GROUP else []
     questions: list[QuizQuestion] = []
-    for card, answer in picked:
-        prompt = card_prompt(col, card)
-        wrong = _distractors(col, card, answer, answers, rng, groups, base_pool=pool, prompt=prompt)
+    for i, (card, answer) in enumerate(picked):
+        prompt = prompts[i]
+        wrong = _distractors(
+            col, card, answer, answers, rng, groups, focused_pool, prompt, nearest[i] if nearest else None
+        )
+        if len(wrong) < MIN_WRONG:
+            wrong = []  # asked as type-the-answer rather than padded with unrelated options
         choices = [answer, *wrong]
         rng.shuffle(choices)
         questions.append(
@@ -241,15 +274,39 @@ def _distractors(
     answers: _AnswerCache,
     rng: random.Random,
     groups: dict[str, list[int]],
-    base_pool: list[int],
+    focused_pool: list[int],
     prompt: str = "",
+    similar: list[str] | None = None,
 ) -> list[str]:
-    """Up to three other answers from related cards, similar in length and kind."""
+    """Up to three wrong options: similar answers first (if an index is on), then related cards."""
     target = _norm(answer)
     question = _norm(prompt)  # an option already printed in the question is a giveaway
     has_digit = any(ch.isdigit() for ch in answer)
     picked: list[str] = []
     seen = {target}
+
+    def usable(text: str | None) -> bool:
+        if not text:
+            return False
+        key = _norm(text)
+        return bool(key) and key not in seen and not _overlaps(key, target) and not _overlaps(key, question)
+
+    def take(text: str) -> None:
+        seen.add(_norm(text))
+        picked.append(text)
+
+    if similar:
+        # Already ranked by meaning; a little variety among the closest few.
+        close: list[str] = []
+        for text in similar:
+            if usable(text) and all(_norm(text) != _norm(c) for c in close):
+                close.append(text)
+            if len(close) >= CHOICES + 1:
+                break
+        for text in rng.sample(close, min(len(close), CHOICES - 1)):
+            take(text)
+        if len(picked) >= MIN_WRONG:
+            return picked
 
     def consider(ids: list[int]) -> None:
         cands: list[tuple[float, str]] = []
@@ -257,10 +314,7 @@ def _distractors(
             if cid == card.id:
                 continue
             text = answers.get_id(cid)
-            if not text:
-                continue
-            key = _norm(text)
-            if not key or key in seen or _overlaps(key, target) or _overlaps(key, question):
+            if text is None or not usable(text):
                 continue
             # Similar length and the same kind (numbers with numbers) look plausible.
             score = abs(len(text) - len(answer)) / max(len(answer), 1)
@@ -271,45 +325,58 @@ def _distractors(
         for _, text in cands:
             if len(picked) >= CHOICES - 1:
                 return
-            key = _norm(text)
-            if key not in seen:
-                seen.add(key)
-                picked.append(text)
+            if usable(text):
+                take(text)
 
-    leaf = _leaf_tag(card)
-    if leaf:
-        notes = [n for n in groups.get(leaf.lower(), []) if n != card.nid]
+    tags = topic_tags(card.note().tags)
+    notes = list(dict.fromkeys(n for t in tags for n in groups.get(t.lower(), []) if n != card.nid))
+    if notes:
         sampled = rng.sample(notes, min(len(notes), _CANDIDATES_PER_GROUP))
         consider([rng.choice(col.card_ids_of_note(n)) for n in sampled])  # type: ignore[arg-type]
-    for search in _related_searches(col, card):
+    for search in _related_searches(col, card, tags):
         if len(picked) >= CHOICES - 1:
             break
         ids = list(col.find_cards(search))
+        if len(ids) > BROAD_GROUP:
+            continue  # "same subject" at this size means nothing
         consider(rng.sample(ids, min(len(ids), _CANDIDATES_PER_GROUP)))
-    if len(picked) < CHOICES - 1:
-        others = [c for c in base_pool if c != card.id]
+    if len(picked) < CHOICES - 1 and focused_pool:
+        others = [c for c in focused_pool if c != card.id]
         consider(rng.sample(others, min(len(others), _CANDIDATES_PER_GROUP)))
     return picked
 
 
-def _leaf_tag(card: Card) -> str | None:
-    """The card's most specific hierarchical tag (AnKing: …::#B&B::05_Glycolysis)."""
-    tags = [t for t in card.note().tags if "::" in t]
-    return max(tags, key=lambda t: (t.count("::"), len(t))) if tags else None
+def topic_tags(tags: list[str]) -> list[str]:
+    """The note's most specific hierarchical topic tags, deepest first.
+
+    AnKing tags a card by topic (…::#B&B::03_Biochem::05_Glycolysis) and by
+    the question-bank questions that test it (…::#UWorld::Step::12345). Only
+    the first kind groups related facts.
+    """
+    topics = [t for t in tags if "::" in t and not _is_question_tag(t)]
+    return sorted(topics, key=lambda t: (-t.count("::"), -len(t)))[:TOPIC_TAGS]
+
+
+def _is_question_tag(tag: str) -> bool:
+    for part in tag.lower().split("::")[1:]:
+        word = re.sub(r"[^a-z0-9&]", "", part)
+        if word in _QBANK or re.fullmatch(r"[\d_.\-]+", part):
+            return True
+    return False
 
 
 def _like(text: str) -> str:
     return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
-def _leaf_tag_groups(col: Collection, leaves: list[str | None]) -> dict[str, list[int]]:
+def _tag_groups(col: Collection, tags: list[str]) -> dict[str, list[int]]:
     """Note ids under each tag (lowercased), in one pass over the notes.
 
     One Anki tag search per question costs ~35 ms at 100k notes (a regex per
     note); a single LIKE over all of them costs about the same as one.
     Matches like Anki's tag search: the tag itself or any of its children.
     """
-    wanted = {t.lower() for t in leaves if t}
+    wanted = {t.lower() for t in tags if t}
     if not wanted:
         return {}
     where = " or ".join(["tags like ? escape '\\'"] * len(wanted))
@@ -320,18 +387,21 @@ def _leaf_tag_groups(col: Collection, leaves: list[str | None]) -> dict[str, lis
             for want in wanted:
                 if tag == want or tag.startswith(want + "::"):
                     groups[want].append(nid)
-    return {t: list(dict.fromkeys(ids)) for t, ids in groups.items()}
+    # A tag on thousands of notes doesn't mean "related".
+    return {t: list(dict.fromkeys(ids)) for t, ids in groups.items() if len(set(ids)) <= BROAD_GROUP}
 
 
-def _related_searches(col: Collection, card: Card) -> list[str]:
-    """After the card's own tag: its parent tags (two levels up), then its deck and the deck's parent."""
+def _related_searches(col: Collection, card: Card, tags: list[str]) -> list[str]:
+    """After the card's own topic tags: their parents (one level up), then its deck and the deck's parent.
+
+    The caller skips results too broad to mean "related".
+    """
     searches = []
-    leaf = _leaf_tag(card)
-    if leaf:
-        parts = leaf.split("::")
-        for depth in range(len(parts) - 1, max(len(parts) - 3, 1), -1):
-            searches.append(col.build_search_string(SearchNode(tag="::".join(parts[:depth]))))
+    for tag in tags:
+        parts = tag.split("::")
+        if len(parts) > 2:
+            searches.append(col.build_search_string(SearchNode(tag="::".join(parts[:-1]))))
     deck = deck_name(col, card.odid or card.did).split("::")
     for depth in range(len(deck), max(len(deck) - 2, 0), -1):
         searches.append(col.build_search_string(SearchNode(deck="::".join(deck[:depth]))))
-    return searches
+    return list(dict.fromkeys(searches))

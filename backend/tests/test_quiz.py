@@ -128,3 +128,73 @@ def test_no_option_is_printed_in_the_question(col: Collection) -> None:
         q = quiz.build_quiz(col, None, None, 1, card_ids=[warfarin], seed=seed).questions[0]
         assert q.answer == "PT/INR" and len(q.choices) >= 3
         assert "aPTT" not in q.choices  # it's right there in the question
+
+
+def test_topic_tags_skip_question_bank_tags() -> None:
+    tags = [
+        "#AK_Step1_v12::#UWorld::Step::10234",
+        "#AK_Step1_v12::#AMBOSS::Qid-ABC12",
+        "#AK_Step1_v12::#B&B::03_Biochem::05_Glycolysis",
+        "#AK_Step1_v12::#FirstAid::02_Biochem::03_Metabolism",
+        "#AK_Step1_v12::#NBME::Form25::17",
+        "leech",
+    ]
+    assert quiz.topic_tags(tags) == [
+        "#AK_Step1_v12::#FirstAid::02_Biochem::03_Metabolism",
+        "#AK_Step1_v12::#B&B::03_Biochem::05_Glycolysis",
+    ]
+
+
+def test_question_bank_tags_dont_make_options_related(col: Collection) -> None:
+    uworld = "#AK_Step1::#UWorld::Step::Renal::10234"  # deeper than the topic tag; groups unrelated facts
+    topic = "#AK_Step1::#B&B::Renal::Diuretics"
+    loop = _add(col, "Basic", {"Front": "Loop diuretic?", "Back": "Furosemide"}, [uworld, topic])
+    for drug in ["Hydrochlorothiazide", "Spironolactone", "Acetazolamide"]:
+        _add(col, "Basic", {"Front": f"Diuretic ({drug})?", "Back": drug}, [topic])
+    for other in ["Vancomycin", "Doxycycline", "Bleeding time"]:
+        _add(col, "Basic", {"Front": f"Other ({other})?", "Back": other}, [uworld])
+    card = col.get_note(loop).cards()[0].id
+    for seed in range(5):
+        q = quiz.build_quiz(col, None, None, 1, card_ids=[card], seed=seed).questions[0]
+        assert set(q.choices) == {"Furosemide", "Hydrochlorothiazide", "Spironolactone", "Acetazolamide"}
+
+
+def test_no_random_padding(col: Collection, monkeypatch: pytest.MonkeyPatch) -> None:
+    """With nothing related to draw from, a question is asked as type-the-answer."""
+    monkeypatch.setattr(quiz, "BROAD_GROUP", 5)  # every deck in the sample is now "too broad"
+    nid = _add(col, "Basic", {"Front": "Antidote for opioids?", "Back": "Naloxone"}, [])
+    card = col.get_note(nid).cards()[0].id
+    q = quiz.build_quiz(col, None, None, 1, card_ids=[card], seed=1).questions[0]
+    assert q.choices == [] and q.correct == -1 and q.answer == "Naloxone"
+
+
+class _FakeNeighbours:
+    def __init__(self, answers: list[str]) -> None:
+        self.answers = answers
+        self.calls: list[list[tuple[str, str]]] = []
+
+    def nearest(self, items: list[tuple[str, str]], limit: int) -> list[list[str]]:
+        self.calls.append(items)
+        return [self.answers for _ in items]
+
+
+def test_similar_answers_come_first(col: Collection) -> None:
+    nid = _add(col, "Basic", {"Front": "Loop diuretic?", "Back": "Furosemide"}, [])
+    card = col.get_note(nid).cards()[0].id
+    similar = ["furosemide", "Bumetanide", "Loop diuretic", "Torsemide", "Ethacrynic acid", "Hydrochlorothiazide", "Mannitol"]
+    fake = _FakeNeighbours(similar)
+    q = quiz.build_quiz(col, None, None, 1, card_ids=[card], seed=2, neighbours=fake).questions[0]
+    assert fake.calls == [[("Furosemide", "Loop diuretic?")]]
+    wrong = set(q.choices) - {"Furosemide"}
+    # Not the answer itself in another case, not text printed in the question.
+    assert len(wrong) == 3 and wrong <= {"Bumetanide", "Torsemide", "Ethacrynic acid", "Hydrochlorothiazide", "Mannitol"}
+
+
+def test_too_few_similar_answers_fall_back_to_related_cards(col: Collection) -> None:
+    topic = "#AK_Step1::#B&B::Renal::Diuretics"
+    nid = _add(col, "Basic", {"Front": "Loop diuretic?", "Back": "Furosemide"}, [topic])
+    for drug in ["Hydrochlorothiazide", "Spironolactone", "Acetazolamide"]:
+        _add(col, "Basic", {"Front": f"Diuretic ({drug})?", "Back": drug}, [topic])
+    card = col.get_note(nid).cards()[0].id
+    q = quiz.build_quiz(col, None, None, 1, card_ids=[card], seed=2, neighbours=_FakeNeighbours(["Bumetanide"])).questions[0]
+    assert len(q.choices) == 4 and "Furosemide" in q.choices
