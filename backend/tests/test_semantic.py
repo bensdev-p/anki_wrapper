@@ -161,6 +161,9 @@ def test_answer_index_updates_and_lookups(workdir: Path) -> None:
     assert "Bumetanide" not in hits and "Vancomycin" not in hits
     assert "Furosemide" not in hits and "furosemide" not in hits  # the answer itself isn't a wrong option
 
+    # An answer the model knows nothing about gets no suggestions (the quiz uses related cards).
+    assert index.nearest([("Zzyzx", "")], 10, emb.embed) == [[]]
+
     index.save()
     again = AnswerIndex.load(workdir / "idx", "tiny", emb.dims)
     assert again.size == index.size and again.notes == index.notes

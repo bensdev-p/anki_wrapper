@@ -169,6 +169,9 @@ class AnswerIndex:
         score = like_answer + QUESTION_WEIGHT * (vecs @ questions.T)
         score[~alive] = -np.inf
         score[like_answer > SAME_ANSWER] = -np.inf
+        # No similarity at all (e.g. the model knows none of the words): no basis to rank on;
+        # the quiz falls back to related cards instead.
+        score[like_answer <= 0] = -np.inf
         k = min(limit, n)
         out = []
         for j in range(len(items)):

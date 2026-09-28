@@ -1,0 +1,3 @@
+# Extra for scripts/quiz_compare.py only (not the app): runs the transformer
+# candidates. Wheels for the Pi (aarch64), Linux, Windows and Apple-silicon Macs.
+onnxruntime==1.30.0     # MIT
