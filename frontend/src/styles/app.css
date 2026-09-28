@@ -4262,3 +4262,33 @@
   font-size: var(--fs-sm);
   white-space: pre-wrap;
 }
+
+/* Smarter quiz options (Settings) */
+.smart__progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+.smart__ready {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.smart__ready svg,
+.practice__smart svg {
+  flex: none;
+  color: var(--good);
+}
+.practice__smart {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: calc(-1 * var(--sp-2)) 0 var(--sp-5);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+.smart__model {
+  margin-top: var(--sp-3);
+  color: var(--text-subtle);
+}

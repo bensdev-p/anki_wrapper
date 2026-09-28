@@ -8,6 +8,7 @@ import type {
   ImportStatus,
   QuizRequest,
   QuizSet,
+  SmartQuizStatus,
   TagMatch,
   AddDefaults,
   AddNoteResult,
@@ -130,6 +131,11 @@ export interface AnkiBackend {
   emptyFilteredDeck(deckId: number): Promise<void>
   /** Write a UI error to the app's log file, so it can be looked at later. Never throws. */
   reportError(kind: string, message: string, detail: string): Promise<void>
+  smartQuizStatus(): Promise<SmartQuizStatus>
+  /** Turn smarter quiz options on (downloads the model the first time) or off. */
+  setSmartQuiz(enabled: boolean): Promise<SmartQuizStatus>
+  /** Turn off and delete the downloaded model and the answer index. */
+  removeSmartQuiz(): Promise<SmartQuizStatus>
   /** Tags containing every word of the query, for picking a quiz source. */
   quizTags(query: string): Promise<TagMatch[]>
   /** A practice quiz from the user's cards. Read-only. */

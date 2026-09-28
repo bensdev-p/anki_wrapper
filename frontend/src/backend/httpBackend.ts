@@ -10,6 +10,7 @@ import type {
   ImportStatus,
   QuizRequest,
   QuizSet,
+  SmartQuizStatus,
   TagMatch,
   AddDefaults,
   AddNoteResult,
@@ -185,6 +186,10 @@ export class HttpBackend implements AnkiBackend {
       // Logging is best effort.
     }
   }
+  smartQuizStatus = () => this.request<SmartQuizStatus>('/smart-quiz')
+  setSmartQuiz = (enabled: boolean) =>
+    this.request<SmartQuizStatus>('/smart-quiz', { method: 'PUT', body: JSON.stringify({ enabled }) })
+  removeSmartQuiz = () => this.request<SmartQuizStatus>('/smart-quiz', { method: 'DELETE' })
   quizTags = (query: string) => this.request<TagMatch[]>(`/quiz/tags?${new URLSearchParams({ q: query })}`)
   quiz = (request: QuizRequest) => this.request<QuizSet>('/quiz', { method: 'POST', body: JSON.stringify(request) })
   importStatus = () => this.request<ImportStatus>('/import')

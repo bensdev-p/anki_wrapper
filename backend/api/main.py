@@ -27,7 +27,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 import service
 from version import __version__
 from service.stats import MAX_DAYS as STATS_MAX_DAYS
-from safety import DEV_COLLECTION, REPO_ROOT, desktop_mode, is_sync_collection, resolve_collection_path, synced_dir
+from safety import DATA_DIR, DEV_COLLECTION, REPO_ROOT, desktop_mode, is_sync_collection, resolve_collection_path, synced_dir
 from service.types import (
     AddDefaults,
     AddNoteResult,
@@ -54,6 +54,7 @@ from service.types import (
 
 from .host import CollectionHost
 from .importer import ImportManager, ImportStatus
+from .smart_quiz import SmartQuiz, SmartQuizStatus
 from .updates import UpdateChecker, UpdateInfo
 from .sharing import COOKIE, COOKIE_MAX_AGE, PairingLocked, Sharing, SharingStatus
 from .sync_manager import AuthFailed, SyncManager, SyncStatus
@@ -98,6 +99,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.sync = SyncManager(host)
     app.state.importer = ImportManager(host)
     app.state.updates = UpdateChecker()
+    app.state.smart = SmartQuiz(host, DATA_DIR / "models", DATA_DIR / "smart-quiz.json")
+    app.state.sync.on_finished = lambda: app.state.smart.refresh(force=True)
+    await app.state.smart.start()
     # Phones on the home network: a desktop-app feature (the Pi is on the network anyway).
     app.state.sharing = Sharing(synced_dir().parent, app) if desktop_mode() else None  # the app's data folder
     if app.state.sharing:
@@ -110,6 +114,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             await app.state.sharing.stop()
         if backups:
             backups.cancel()
+        await app.state.smart.stop()
         await app.state.sync.wait()
         await app.state.importer.wait()
         if backups:
@@ -522,17 +527,50 @@ class QuizBody(BaseModel):
 @app.post("/api/quiz")
 async def quiz(request: Request, body: QuizBody) -> QuizSet:
     started = time.perf_counter()
+    smart: SmartQuiz = request.app.state.smart
+    neighbours = smart.neighbours()
     result = await _host(request).run(
         lambda col: service.quiz.build_quiz(
-            col, body.deck_id, body.tag, body.count, body.cards, body.card_ids  # type: ignore[arg-type]
+            col, body.deck_id, body.tag, body.count, body.cards, body.card_ids, neighbours=neighbours  # type: ignore[arg-type]
         )
     )
+    smart.refresh()  # pick up edits and new cards in the background
     log.info(
-        "quiz: %d of %d questions (%s, %s cards) in %.2fs",
+        "quiz: %d of %d questions (%s, %s cards%s) in %.2fs",
         len(result.questions), body.count, "retry" if body.card_ids else "deck" if body.deck_id else "tag" if body.tag else "all decks",
-        body.cards, time.perf_counter() - started,
+        body.cards, ", smarter options" if neighbours else "", time.perf_counter() - started,
     )
     return result
+
+
+@app.get("/api/smart-quiz")
+async def smart_quiz_status(request: Request) -> SmartQuizStatus:
+    return request.app.state.smart.status()
+
+
+class SmartQuizBody(BaseModel):
+    enabled: bool
+
+
+@app.put("/api/smart-quiz")
+async def set_smart_quiz(request: Request, body: SmartQuizBody) -> SmartQuizStatus:
+    """Turn smarter quiz options on (downloads the model the first time) or off."""
+    if desktop_mode():
+        _require_local(request)
+    try:
+        await request.app.state.smart.set_enabled(body.enabled)
+    except ValueError as err:
+        raise HTTPException(409, str(err)) from err
+    return request.app.state.smart.status()
+
+
+@app.delete("/api/smart-quiz")
+async def remove_smart_quiz(request: Request) -> SmartQuizStatus:
+    """Turn off and delete the downloaded model and the answer index."""
+    if desktop_mode():
+        _require_local(request)
+    await request.app.state.smart.remove()
+    return request.app.state.smart.status()
 
 
 class ClientError(BaseModel):

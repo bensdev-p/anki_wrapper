@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
 
@@ -76,6 +77,8 @@ class SyncManager:
         self._media_usn: int | None = None
         self._media = MediaSyncState(active=False, summary="", error=None)
         self._task: asyncio.Task | None = None
+        self.on_finished: Callable[[], None] | None = None
+        """Called after every sync (e.g. to refresh the quiz index)."""
 
     @property
     def enabled(self) -> bool:
@@ -182,6 +185,7 @@ class SyncManager:
             self.error = _friendly(err)
         finally:
             self.phase = "idle"
+            self._finished()
 
     async def _full(self, upload: bool) -> None:
         assert self.state
@@ -196,6 +200,14 @@ class SyncManager:
             self.error = _friendly(err)
         finally:
             self.phase = "idle"
+            self._finished()
+
+    def _finished(self) -> None:
+        if self.on_finished:
+            try:
+                self.on_finished()
+            except Exception:
+                pass
 
 
 def _friendly(err: Exception) -> str:

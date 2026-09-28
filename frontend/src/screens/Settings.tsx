@@ -2,7 +2,7 @@ import { Check, ChevronDown, Compass, Copy, Download, FolderOpen, LogIn, Refresh
 import { useCallback, useEffect, useState } from 'react'
 import { useBackend } from '../backend/context'
 import { BackendError } from '../backend/AnkiBackend'
-import type { BackupInfo, CollectionInfo, SharingStatus, UpdateInfo } from '../backend/types'
+import type { BackupInfo, CollectionInfo, SharingStatus, SmartQuizStatus, UpdateInfo } from '../backend/types'
 import { Button } from '../components/Button'
 import { Dialog } from '../components/Dialog'
 import { APP_NAME } from '../components/Logo'
@@ -11,6 +11,7 @@ import { Switch } from '../components/Switch'
 import { useToast } from '../components/Toast'
 import { openImport } from '../lib/importer'
 import { replayTour } from '../lib/tour'
+import { useSmartQuiz } from '../lib/smartQuiz'
 import { load, save } from '../lib/storage'
 import { ThemeSwatch } from '../components/ThemeMenu'
 import { useTheme } from '../themes/ThemeProvider'
@@ -59,6 +60,7 @@ export function Settings() {
           </Button>
         </div>
       </section>
+      {info && <SmartQuizSection canChange={!(info.desktop && info.remote)} />}
       {info && !info.remote && !info.is_sample && <BackupsSection canRestore={info.desktop} />}
       <section className="settings-card">
         <h2>Help</h2>
@@ -266,6 +268,132 @@ function UpdateRow() {
     </div>
   ) : (
     <p className="settings-card__hint">You have the latest version.</p>
+  )
+}
+
+function SmartQuizSection({ canChange }: { canChange: boolean }) {
+  const backend = useBackend()
+  const toast = useToast()
+  const [status, setStatus] = useSmartQuiz()
+  const [busy, setBusy] = useState(false)
+  const [confirmRemove, setConfirmRemove] = useState(false)
+  if (!status?.available) return null
+
+  const act = async (fn: () => Promise<SmartQuizStatus>) => {
+    setBusy(true)
+    try {
+      setStatus(await fn())
+    } catch (err) {
+      toast(err instanceof BackendError ? err.message : 'Couldn’t change smarter quiz options.', 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+  const pct = status.progress !== null ? Math.round(status.progress * 100) : null
+  const size = status.model_size ? formatSize(status.model_size) : ''
+
+  return (
+    <section className="settings-card" aria-labelledby="smart-title">
+      <div className="settings-card__head">
+        <div>
+          <h2 id="smart-title">Smarter quiz options</h2>
+          <p className="settings-card__text">
+            Practice quizzes pick wrong answers by meaning, from your own cards: a drug question gets other drugs, a lab
+            test other lab tests. It runs entirely on this computer; nothing about your cards is sent anywhere.
+          </p>
+        </div>
+        <Switch
+          checked={status.enabled}
+          onChange={(v) => void act(() => backend.setSmartQuiz(v))}
+          disabled={busy || !canChange}
+          label="Smarter quiz options"
+        />
+      </div>
+
+      {!canChange && <p className="settings-card__hint">Change this on the computer running {APP_NAME}.</p>}
+
+      {status.phase === 'downloading' || status.phase === 'indexing' ? (
+        <div className="smart__progress" aria-live="polite">
+          <div
+            className={`meter ${pct === null ? 'meter--indeterminate' : ''}`}
+            role="progressbar"
+            aria-label={status.phase === 'downloading' ? 'Downloading' : 'Reading your cards'}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={pct ?? undefined}
+          >
+            <div className="meter__fill" style={pct === null ? undefined : { transform: `scaleX(${pct / 100})` }} />
+          </div>
+          <p className="settings-card__hint">
+            {status.phase === 'downloading'
+              ? `Downloading the model${pct !== null ? `: ${pct}%` : '…'} (${size}, once)`
+              : `Reading your cards${status.detail ? `: ${status.detail}` : '…'}. You can keep studying meanwhile.`}
+          </p>
+        </div>
+      ) : status.phase === 'ready' ? (
+        <p className="settings-card__hint smart__ready">
+          <Check size={14} aria-hidden="true" /> Ready: {status.answers.toLocaleString()} answers from your cards. New and
+          edited cards are picked up after each sync.
+        </p>
+      ) : status.phase === 'error' ? (
+        <div className="settings-card__actions">
+          <p className="settings-card__error">{status.error}</p>
+          <Button variant="secondary" size="sm" onClick={() => void act(() => backend.setSmartQuiz(true))} disabled={busy || !canChange}>
+            Try again
+          </Button>
+        </div>
+      ) : (
+        <p className="settings-card__hint">
+          {status.downloaded ? 'The model is downloaded; switch on to use it.' : `Turning this on downloads ${size} once.`}
+        </p>
+      )}
+
+      <p className="settings-card__hint smart__model">
+        Model: {status.model_name} · {status.model_license} ·{' '}
+        {status.model_source?.startsWith('https://') ? (
+          <button className="link" onClick={() => openExternal(status.model_source!)}>
+            source
+          </button>
+        ) : (
+          status.model_source
+        )}
+        {status.downloaded && canChange && (
+          <>
+            {' · '}
+            <button className="link" onClick={() => setConfirmRemove(true)} disabled={busy}>
+              Remove download
+            </button>
+          </>
+        )}
+      </p>
+
+      <Dialog
+        open={confirmRemove}
+        onClose={() => setConfirmRemove(false)}
+        title="Remove the download?"
+        actions={
+          <>
+            <Button variant="ghost" onClick={() => setConfirmRemove(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setConfirmRemove(false)
+                void act(() => backend.removeSmartQuiz())
+              }}
+            >
+              Remove
+            </Button>
+          </>
+        }
+      >
+        <p>
+          Smarter options turn off and the model ({size}) is deleted from this computer. Your cards aren’t affected, and
+          you can download it again any time.
+        </p>
+      </Dialog>
+    </section>
   )
 }
 

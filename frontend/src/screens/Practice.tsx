@@ -1,4 +1,4 @@
-import { ArrowRight, Check, RotateCcw, Search, Tag, X } from 'lucide-react'
+import { ArrowRight, Check, RotateCcw, Search, Sparkles, Tag, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BackendError } from '../backend/AnkiBackend'
 import { useBackend } from '../backend/context'
@@ -8,7 +8,8 @@ import { CardFrame, type CardKeyEvent } from '../components/card/CardFrame'
 import { Kbd } from '../components/Kbd'
 import { flattenDecks, useDecks } from '../lib/decks'
 import { checkAnswer, type Verdict } from '../lib/quizCheck'
-import { navigate } from '../lib/router'
+import { navigate, routeHash } from '../lib/router'
+import { useSmartQuiz } from '../lib/smartQuiz'
 import { load, save } from '../lib/storage'
 import { useTheme } from '../themes/ThemeProvider'
 
@@ -156,6 +157,7 @@ export function Practice({ deckId: initialDeck }: { deckId: number | null }) {
         Test yourself with questions made from your own cards. Quizzes are just practice: they don’t change your reviews or
         schedule.
       </p>
+      <SmartHint />
 
       <section className="settings-card practice-setup">
         <div className="practice-field">
@@ -235,6 +237,34 @@ export function Practice({ deckId: initialDeck }: { deckId: number | null }) {
         </div>
       </section>
     </main>
+  )
+}
+
+/** Whether wrong answers are picked by meaning (Settings → Smarter quiz options). */
+function SmartHint() {
+  const [smart] = useSmartQuiz()
+  if (!smart?.available) return null
+  if (smart.enabled && smart.phase === 'ready')
+    return (
+      <p className="practice__smart">
+        <Sparkles size={15} aria-hidden="true" /> Smarter options are on: wrong answers are picked by meaning.
+      </p>
+    )
+  if (smart.enabled && (smart.phase === 'downloading' || smart.phase === 'indexing'))
+    return (
+      <p className="practice__smart">
+        Smarter options are getting ready{smart.progress !== null ? ` (${Math.round(smart.progress * 100)}%)` : ''}. Quizzes
+        work meanwhile.
+      </p>
+    )
+  return (
+    <p className="practice__smart">
+      Tip: turn on{' '}
+      <a href={routeHash({ name: 'settings' })} className="link">
+        Smarter quiz options
+      </a>{' '}
+      in Settings for wrong answers closer to the right one.
+    </p>
   )
 }
 

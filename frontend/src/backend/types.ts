@@ -524,3 +524,26 @@ export interface QuizSet {
   available: number
   questions: QuizQuestion[]
 }
+
+// Smarter quiz options (api/smart_quiz.py): on-device embeddings for closer wrong answers.
+
+export type SmartQuizPhase = 'off' | 'downloading' | 'indexing' | 'ready' | 'error'
+
+export interface SmartQuizStatus {
+  /** A model is listed for download; otherwise the Settings switch is hidden. */
+  available: boolean
+  enabled: boolean
+  phase: SmartQuizPhase
+  /** 0–1 while downloading or indexing. */
+  progress: number | null
+  detail: string | null
+  error: string | null
+  model_name: string | null
+  /** Download size in bytes. */
+  model_size: number | null
+  model_license: string | null
+  model_source: string | null
+  downloaded: boolean
+  /** Distinct answers indexed. */
+  answers: number
+}
