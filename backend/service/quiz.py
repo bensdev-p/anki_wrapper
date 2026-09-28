@@ -48,6 +48,8 @@ MIN_WRONG = 2
 BROAD_GROUP = 1500
 """A tag, deck or quiz with more notes/cards than this is too broad to count as "related"."""
 TOPIC_TAGS = 3
+VARIETY = 0.05
+"""Similar answers scoring within this of the best are equally good; pick among them for variety."""
 _CANDIDATES_PER_GROUP = 30
 
 # Question banks and resource IDs: their tags group facts by question, not by topic.
@@ -57,8 +59,8 @@ _QBANK = {"uworld", "amboss", "nbme", "uwsa", "qid", "qids", "truelearn", "kapla
 class AnswerNeighbours(Protocol):
     """Finds answers in the collection that mean something similar (optional; see backend/semantic)."""
 
-    def nearest(self, items: list[tuple[str, str]], limit: int) -> list[list[str]]:
-        """For each (answer, question) pair: other answers, most plausible wrong option first."""
+    def nearest(self, items: list[tuple[str, str]], limit: int) -> list[list[tuple[str, float]]]:
+        """For each (answer, question) pair: other answers with a similarity score, best first."""
         ...
 
 _FIELD_REF = re.compile(r"\{\{([^#/^!{}][^{}]*)\}\}")
@@ -213,6 +215,28 @@ def card_answer(col: Collection, card: Card) -> str | None:
     return text
 
 
+# For the answer index (backend/semantic): read-only, a chunk of notes at a time.
+##########################################################################
+
+
+def note_mod_times(col: Collection) -> dict[int, int]:
+    """Every note's id and modification time: ids and numbers only, no note contents."""
+    return {int(nid): int(mod) for nid, mod in col.db.all("select id, mod from notes")}
+
+
+def note_answers(col: Collection, note_ids: list[int]) -> dict[int, tuple[int, list[str]]]:
+    """For each note that still exists: (mod time, its cards' short answers)."""
+    out: dict[int, tuple[int, list[str]]] = {}
+    for nid in note_ids:
+        try:
+            note = col.get_note(nid)  # type: ignore[arg-type]
+        except Exception:  # deleted meanwhile
+            continue
+        texts = [a for a in (card_answer(col, c) for c in note.cards()) if a]
+        out[nid] = (int(note.mod), list(dict.fromkeys(texts)))
+    return out
+
+
 _CLOZE = re.compile(r"\{\{c(\d+)::(.*?)(?:::(.*?))?\}\}", re.DOTALL)
 MAX_PROMPT_CHARS = 180
 
@@ -276,7 +300,7 @@ def _distractors(
     groups: dict[str, list[int]],
     focused_pool: list[int],
     prompt: str = "",
-    similar: list[str] | None = None,
+    similar: list[tuple[str, float]] | None = None,
 ) -> list[str]:
     """Up to three wrong options: similar answers first (if an index is on), then related cards."""
     target = _norm(answer)
@@ -296,15 +320,22 @@ def _distractors(
         picked.append(text)
 
     if similar:
-        # Already ranked by meaning; a little variety among the closest few.
-        close: list[str] = []
-        for text in similar:
-            if usable(text) and all(_norm(text) != _norm(c) for c in close):
-                close.append(text)
-            if len(close) >= CHOICES + 1:
+        close: list[tuple[str, float]] = []
+        for text, score in similar:
+            if usable(text) and all(_norm(text) != _norm(c) for c, _ in close):
+                close.append((text, score))
+            if len(close) >= CHOICES + 2:
                 break
-        for text in rng.sample(close, min(len(close), CHOICES - 1)):
-            take(text)
+        if close:
+            # Variety only among options about as good as the best; then the next best.
+            band = [t for t, score in close if score >= close[0][1] - VARIETY]
+            for text in rng.sample(band, min(len(band), CHOICES - 1)):
+                take(text)
+            for text, _ in close:
+                if len(picked) >= CHOICES - 1:
+                    break
+                if usable(text):
+                    take(text)
         if len(picked) >= MIN_WRONG:
             return picked
 

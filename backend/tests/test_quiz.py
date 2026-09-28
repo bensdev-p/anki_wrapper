@@ -173,9 +173,9 @@ class _FakeNeighbours:
         self.answers = answers
         self.calls: list[list[tuple[str, str]]] = []
 
-    def nearest(self, items: list[tuple[str, str]], limit: int) -> list[list[str]]:
+    def nearest(self, items: list[tuple[str, str]], limit: int) -> list[list[tuple[str, float]]]:
         self.calls.append(items)
-        return [self.answers for _ in items]
+        return [[(a, 0.9 - 0.01 * i) for i, a in enumerate(self.answers)] for _ in items]
 
 
 def test_similar_answers_come_first(col: Collection) -> None:
