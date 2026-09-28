@@ -83,6 +83,14 @@ the Pi server mode stays supported (and stays download-only).
   desktop behavior, check `aqt` (e.g. `pip download aqt==<same version> --no-deps`).
 - Practice quizzes (`service/quiz.py`) are read-only: they render cards and read
   notes, and never answer, reschedule or edit anything.
+- Smarter quiz options (`backend/semantic/`, `api/smart_quiz.py`): on-device
+  embeddings only; no card text leaves the machine. Models download only from
+  entries in `semantic/models.py`, pinned by revision URL and SHA-256 (verified
+  before use); pick them with `scripts/quiz_compare.py`. The answer index lives in
+  `<collection folder>/quiz-index/`, never in the collection, and is built a
+  small chunk of notes per `host.run` (reviews must not wait) — the one place
+  that reads every note, in the background. Prefer "static" (Model2Vec) models:
+  numpy + tokenizers only; ONNX Runtime has no Intel-Mac builds and isn't bundled.
 - Performance: never load all cards or notes into Python. Use Anki's counts and
   queries (`find_cards` returns ids only). Target: instant deck list and next card
   at 100k cards on a Pi 5 (`scripts/benchmark.py`).

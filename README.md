@@ -120,8 +120,13 @@ from a laptop; the steps below cover that setup.
 - **Practice quizzes** (Practice tab, or a deck's ⋯ menu): multiple choice or
   typed answers made from your own cards, by deck or tag (e.g. an AnKing
   `#B&B::Glycolysis` tag), from studied cards, your weak spots, or everything.
-  Wrong options are answers from closely related cards. Quizzes are read-only:
-  they never answer or reschedule a card.
+  Wrong options are answers from closely related cards (topic tags, not
+  question-bank tags); a question with no good options is asked as
+  type-the-answer. Quizzes are read-only: they never answer or reschedule a card.
+- **Smarter quiz options** (Settings, off by default): an on-device embedding
+  model picks wrong answers by meaning from your own cards (a drug gets other
+  drugs). Downloaded once, checked against a pinned checksum; everything runs on
+  your computer. The answer index lives next to the collection, never in it.
 - Custom study (Anki's six options), filtered decks (also from any browser
   search: "Study these"), and importing shared decks (`.apkg`).
 - Settings: AnkiWeb account, use on your phone, import, backups, updates.
@@ -418,6 +423,19 @@ Developer account; until then users see the "Open Anyway" step above.
 The tests build a fresh sample collection under `data/.pytest/` and check:
 answering a card changes its due date, undo reverts it exactly, the counts update,
 stale answers are rejected, and rendering handles audio, CSS and scripts.
+
+### Choosing the smarter-quiz model (on the Pi)
+
+`scripts/quiz_compare.py` builds the same quiz questions from a copy of the synced
+collection with today's rules and with each candidate embedding model (downloaded
+from Hugging Face), and writes `data/quiz-compare/report.html` side by side plus
+pinned entries (revision URLs, SHA-256, sizes, license) for
+`backend/semantic/models.py`. The Settings switch appears once a model is listed there.
+
+```bash
+.venv/bin/pip install -r scripts/requirements-compare.txt   # ONNX Runtime, for the transformer candidates
+.venv/bin/python scripts/quiz_compare.py                     # or --tag "#AK_Step1_v12::#B&B" --count 30
+```
 
 Benchmark on the dev container (x86_64), 100k cards / 250k reviews: deck tree ≈ 24 ms,
 answer + next card ≈ 1.5 ms, undo ≈ 1 ms, stats ≈ 0.27 s (3 months) / 0.57 s (1 year).

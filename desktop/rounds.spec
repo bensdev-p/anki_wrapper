@@ -38,6 +38,13 @@ for package in ("anki",):
 hiddenimports += ["safety", "version"]
 hiddenimports += collect_submodules("api", filter=lambda name: "tests" not in name)
 hiddenimports += collect_submodules("service")
+# Smarter quiz options: imported lazily when switched on; numpy has its own hook.
+hiddenimports += collect_submodules("semantic")
+for package in ("tokenizers",):
+    d, b, h = collect_all(package)
+    datas += d
+    binaries += b
+    hiddenimports += h
 hiddenimports += collect_submodules("uvicorn")
 
 # Linux only: Qt WebEngine is bundled, but none of these parts of Qt are used.
